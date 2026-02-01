@@ -128,7 +128,7 @@ export default function PortfolioCMS() {
 
   const getUserData = () => portfolio[currentUser] || {
 
-    bio: { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' },
+    bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '' },
 
     experiences: [],
 
@@ -604,9 +604,11 @@ function BioEditor({ data, updateData }) {
 
         <InputField label="Full Name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
 
-        <InputField label="Professional Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="e.g. Full Stack Developer" />
+        <InputField label="Tagline / Identity Statement" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} placeholder="e.g. I make things with words" />
 
-        <TextArea label="About You" value={form.about} onChange={(about) => setForm({ ...form, about })} placeholder="Tell your story..." rows={4} />
+        <InputField label="Professional Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="e.g. Writer & Teacher (optional)" />
+
+        <TextArea label="About You" value={form.about} onChange={(about) => setForm({ ...form, about })} placeholder="Your story in prose — who you are, your journey, what you do now..." rows={6} />
 
         <InputField label="Email" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} />
 
@@ -836,7 +838,7 @@ function ProjectsEditor({ data, updateData }) {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), title: '', description: '', link: '', tech: '' });
+    setForm({ id: Date.now(), title: '', description: '', featuredDescription: '', link: '', tech: '', featured: false });
 
   };
 
@@ -898,11 +900,21 @@ function ProjectsEditor({ data, updateData }) {
 
         <InputField label="Project Title" value={form.title} onChange={(title) => setForm({ ...form, title })} />
 
-        <TextArea label="Description" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={3} />
+        <TextArea label="Short Description" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={2} placeholder="Brief summary for list view" />
 
-        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://github.com/..." />
+        <div className="flex items-center gap-2">
 
-        <InputField label="Tech Stack" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node, MongoDB..." />
+          <input type="checkbox" id="featured" checked={form.featured || false} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500" />
+
+          <label htmlFor="featured" className="text-slate-300 font-medium">Featured — give this project a full spotlight section</label>
+
+        </div>
+
+        {form.featured && <TextArea label="Featured Description" value={form.featuredDescription || ''} onChange={(featuredDescription) => setForm({ ...form, featuredDescription })} rows={6} placeholder="Rich narrative about this work — the story, the vision, why it matters..." />}
+
+        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://..." />
+
+        <InputField label="Tech Stack / Category" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node — or: Book, Podcast, Course..." />
 
         <div className="flex gap-2">
 
@@ -970,7 +982,7 @@ function ProjectsEditor({ data, updateData }) {
 
                 <div className="flex-1">
 
-                  <h3 className="font-bold text-white">{proj.title}</h3>
+                  <h3 className="font-bold text-white flex items-center gap-2">{proj.title} {proj.featured && <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded">Featured</span>}</h3>
 
                   <p className="text-slate-300 text-sm mt-2">{proj.description}</p>
 
@@ -1395,251 +1407,195 @@ function SocialsEditor({ data, updateData }) {
 
 
 function PublicPortfolio({ data, username }) {
+  const name = data.bio?.name || username;
+  const tagline = data.bio?.tagline || '';
+  const featuredProjects = (data.projects || []).filter((p) => p.featured);
+  const otherProjects = (data.projects || []).filter((p) => !p.featured);
+  const allProjects = data.projects || [];
+  const socials = data.socials || [];
 
   return (
-
-    <div className="space-y-12 max-w-4xl">
-
-      <section className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-12 border border-slate-700">
-
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
-
-          {data.bio.profilePicture && (
-
-            <div className="w-[200px] h-[200px] rounded-full bg-slate-700 border-4 border-slate-600 overflow-hidden flex-shrink-0 shadow-xl">
-
-              <img
-
-                src={data.bio.profilePicture}
-
-                alt={data.bio.name || username}
-
-                className="w-full h-full object-cover"
-
-              />
-
-            </div>
-
-          )}
-
-          <div className="flex-1 text-center md:text-left">
-
-            <h1 className="text-5xl font-bold text-white mb-2">{data.bio.name || username}</h1>
-
-            <p className="text-2xl text-emerald-400 font-semibold mb-4">{data.bio.title}</p>
-
-            <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mb-6">{data.bio.about}</p>
-
-            <div className="flex flex-wrap gap-6 text-sm justify-center md:justify-start">
-
-              {data.bio.email && <span className="text-slate-300">📧 <span className="text-slate-400">{data.bio.email}</span></span>}
-
-              {data.bio.phone && <span className="text-slate-300">📱 <span className="text-slate-400">{data.bio.phone}</span></span>}
-
-            </div>
-
-          </div>
-
-        </div>
-
+    <div className="font-sans text-slate-200">
+      {/* Hero — identity over credentials */}
+      <section className="min-h-[85vh] flex flex-col justify-center px-6 py-20 max-w-4xl mx-auto">
+        <p className="text-slate-400 text-lg mb-4 font-medium">Hello. My name is</p>
+        <h1 className="font-serif text-5xl md:text-7xl font-semibold text-white leading-tight tracking-tight mb-6">
+          {name}.
+        </h1>
+        {tagline && (
+          <p className="font-serif text-2xl md:text-3xl text-slate-300 italic leading-relaxed max-w-2xl">
+            {tagline}
+          </p>
+        )}
+        {!tagline && (
+          <p className="text-slate-500 text-sm">Add a tagline in your bio — e.g. &quot;I make things with words&quot;</p>
+        )}
+        <div className="mt-16 text-slate-500 text-sm animate-bounce">↓ scroll</div>
       </section>
 
-
-
-      {data.experiences.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={experienceIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Experience
-
-          </h2>
-
-          <div className="space-y-4">
-
-            {data.experiences.map(exp => (
-
-              <div key={exp.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
-
-                <h3 className="font-bold text-white text-xl">{exp.position}</h3>
-
-                <p className="text-emerald-400 font-medium mt-1">{exp.company}</p>
-
-                <p className="text-sm text-slate-400 mt-2">{exp.startDate} → {exp.endDate || 'Current'}</p>
-
-                {exp.description && <p className="text-slate-300 mt-4">{exp.description}</p>}
-
+      {/* Featured Work — full narrative sections */}
+      {featuredProjects.length > 0 &&
+        featuredProjects.map((proj) => (
+          <section
+            key={proj.id}
+            id={`project-${proj.id}`}
+            className="py-20 md:py-28 px-6 border-t border-slate-700/50"
+          >
+            <div className="max-w-2xl mx-auto">
+              <h2 className="font-serif text-3xl md:text-4xl font-semibold text-white mb-6">
+                {proj.title}
+              </h2>
+              <div className="prose prose-invert prose-slate max-w-none">
+                <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-lg">
+                  {proj.featuredDescription || proj.description}
+                </p>
               </div>
-
-            ))}
-
-          </div>
-
-        </section>
-
-      )}
-
-
-
-      {data.projects.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={projectIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
+              {proj.link && (
+                <a
+                  href={proj.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-block mt-8 px-6 py-3 border border-slate-500 hover:border-emerald-500 text-slate-300 hover:text-emerald-400 font-medium transition"
+                >
+                  View →
+                </a>
+              )}
             </div>
+          </section>
+        ))}
 
-            Projects
-
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-            {data.projects.map(proj => (
-
-              <div key={proj.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600 hover:border-emerald-600/50 transition">
-
-                <h3 className="font-bold text-white text-lg">{proj.title}</h3>
-
-                <p className="text-slate-300 text-sm mt-3">{proj.description}</p>
-
-                {proj.tech && <p className="text-xs text-slate-400 mt-4">🛠️ {proj.tech}</p>}
-
-                {proj.link && (
-
-                  <a
-
-                    href={proj.link}
-
-                    target="_blank"
-
-                    rel="noopener noreferrer"
-
-                    className="text-emerald-400 hover:text-emerald-300 text-sm mt-4 inline-block font-medium"
-
-                  >
-
-                    View Project →
-
-                  </a>
-
-                )}
-
-              </div>
-
-            ))}
-
+      {/* About — narrative story */}
+      {(data.bio?.about || data.bio?.title) && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50 bg-slate-900/30">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-8">
+              About {name}
+            </h2>
+            {data.bio.title && (
+              <p className="text-emerald-400/90 font-medium mb-4">{data.bio.title}</p>
+            )}
+            <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-lg">
+              {data.bio.about}
+            </p>
           </div>
-
         </section>
-
       )}
 
+      {/* Made — Things I've Made */}
+      {allProjects.length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">
+              Things I&apos;ve Made
+            </h2>
+            <ul className="space-y-4">
+              {allProjects.map((proj) => (
+                <li key={proj.id} className="group">
+                  {proj.link ? (
+                    <a
+                      href={proj.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-baseline gap-3 text-slate-300 hover:text-emerald-400 transition"
+                    >
+                      <span className="font-medium text-lg group-hover:translate-x-1 transition-transform">
+                        {proj.title}
+                      </span>
+                      <span className="text-slate-500 text-sm">→</span>
+                    </a>
+                  ) : (
+                    <span className="text-slate-300 text-lg">{proj.title}</span>
+                  )}
+                  {proj.tech && (
+                    <span className="text-slate-500 text-sm ml-0 block mt-0.5">{proj.tech}</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+      )}
 
-
-      {data.blog.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={blogIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
+      {/* Journey — experience, reframed */}
+      {data.experiences?.length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50 bg-slate-900/30">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">
+              Journey
+            </h2>
+            <div className="space-y-8">
+              {data.experiences.map((exp) => (
+                <div key={exp.id}>
+                  <h3 className="font-medium text-white text-lg">{exp.position}</h3>
+                  <p className="text-emerald-400/90 mt-0.5">{exp.company}</p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {exp.startDate} → {exp.endDate || 'Present'}
+                  </p>
+                  {exp.description && (
+                    <p className="text-slate-300 mt-3 leading-relaxed">{exp.description}</p>
+                  )}
+                </div>
+              ))}
             </div>
-
-            Blog
-
-          </h2>
-
-          <div className="space-y-4">
-
-            {data.blog.map(post => (
-
-              <div key={post.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
-
-                <h3 className="font-bold text-white text-xl">{post.title}</h3>
-
-                <p className="text-slate-400 text-sm mt-2">📅 {post.date}</p>
-
-                <p className="text-slate-300 mt-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
-
-              </div>
-
-            ))}
-
           </div>
-
         </section>
-
       )}
 
-
-
-      {data.socials && data.socials.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={socialIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
+      {/* Blog */}
+      {data.blog?.length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">
+              Writing
+            </h2>
+            <div className="space-y-8">
+              {data.blog.map((post) => (
+                <article key={post.id}>
+                  <h3 className="font-medium text-white text-lg">{post.title}</h3>
+                  <p className="text-slate-500 text-sm mt-1">{post.date}</p>
+                  <p className="text-slate-300 mt-3 leading-relaxed whitespace-pre-wrap">
+                    {post.content}
+                  </p>
+                </article>
+              ))}
             </div>
-
-            Socials
-
-          </h2>
-
-          <div className="flex flex-wrap gap-4">
-
-            {data.socials.map(social => (
-
-              <a
-
-                key={social.id}
-
-                href={social.url}
-
-                target="_blank"
-
-                rel="noopener noreferrer"
-
-                className="bg-slate-700/30 hover:bg-slate-700/50 rounded-lg px-6 py-3 border border-slate-600 hover:border-emerald-600/50 transition inline-flex items-center gap-2"
-
-              >
-
-                <span className="font-semibold text-emerald-400">{social.platform}</span>
-
-                <span className="text-slate-400 text-sm">→</span>
-
-              </a>
-
-            ))}
-
           </div>
-
         </section>
-
       )}
 
+      {/* Contact — Stay in Touch */}
+      {(socials.length > 0 || data.bio?.email) && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-8">
+              Stay in Touch
+            </h2>
+            <div className="flex flex-wrap gap-4">
+              {data.bio?.email && (
+                <a
+                  href={`mailto:${data.bio.email}`}
+                  className="text-slate-300 hover:text-emerald-400 transition font-medium"
+                >
+                  Email
+                </a>
+              )}
+              {socials.map((social) => (
+                <a
+                  key={social.id}
+                  href={social.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-slate-300 hover:text-emerald-400 transition font-medium"
+                >
+                  {social.platform}
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
     </div>
-
   );
-
 }
 
 
