@@ -146,7 +146,7 @@ export default function PortfolioCMS() {
 
   const getUserData = () => portfolio[currentUser] || {
 
-    bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '' },
+    bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' },
 
     experiences: [],
 
@@ -618,6 +618,68 @@ function BioEditor({ data, updateData }) {
 
       <div className="space-y-4">
 
+        <label className="block text-sm font-medium text-slate-300 mb-2">Hero Image</label>
+
+        <p className="text-xs text-slate-400 mb-2">Optional. Shows in the hero section next to your intro. Use a portrait or wide image.</p>
+
+        <div className="flex items-center gap-6">
+
+          <div className="relative">
+
+            <div className="w-[280px] h-[180px] rounded-lg bg-slate-700 border-2 border-dashed border-slate-600 overflow-hidden flex items-center justify-center">
+
+              {form.heroImage ? (
+
+                <img src={form.heroImage} alt="Hero" className="w-full h-full object-cover" />
+
+              ) : (
+
+                <div className="text-center text-slate-400">
+
+                  <Upload size={40} className="mx-auto mb-2 opacity-50" />
+
+                  <span className="text-sm">No image</span>
+
+                </div>
+
+              )}
+
+            </div>
+
+            <div className="flex gap-2 mt-2">
+
+              <input type="file" accept="image/*" id="hero-image-input" className="hidden" onChange={(e) => {
+
+                const file = e.target.files?.[0];
+
+                if (file && file.size <= 5 * 1024 * 1024) {
+
+                  const reader = new FileReader();
+
+                  reader.onloadend = () => setForm({ ...form, heroImage: reader.result });
+
+                  reader.readAsDataURL(file);
+
+                } else if (file) alert('Image must be under 5MB');
+
+              }} />
+
+              <label htmlFor="hero-image-input" className="cursor-pointer text-sm text-emerald-400 hover:text-emerald-300">Upload</label>
+
+              {form.heroImage && <button type="button" onClick={() => setForm({ ...form, heroImage: '' })} className="text-sm text-red-400 hover:text-red-300">Remove</button>}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div className="space-y-4">
+
         <InputField label="Full Name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
 
         <InputField label="Tagline / Identity Statement" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} placeholder="e.g. I make things with words" />
@@ -854,7 +916,7 @@ function ProjectsEditor({ data, updateData }) {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), title: '', description: '', featuredDescription: '', link: '', tech: '', featured: false });
+    setForm({ id: Date.now(), title: '', description: '', featuredDescription: '', link: '', tech: '', featured: false, image: '' });
 
   };
 
@@ -928,6 +990,40 @@ function ProjectsEditor({ data, updateData }) {
 
         {form.featured && <TextArea label="Featured Description" value={form.featuredDescription || ''} onChange={(featuredDescription) => setForm({ ...form, featuredDescription })} rows={6} placeholder="Rich narrative about this work — the story, the vision, why it matters..." />}
 
+        <div>
+
+          <label className="block text-sm font-medium text-slate-300 mb-2">Project Image</label>
+
+          <div className="flex items-center gap-4">
+
+            <div className="w-32 h-24 rounded-lg bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0 flex items-center justify-center">
+
+              {form.image ? <img src={form.image} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-500 text-xs">No image</span>}
+
+            </div>
+
+            <div>
+
+              <input type="file" accept="image/*" id={`proj-img-${form.id}`} className="hidden" onChange={(e) => {
+
+                const file = e.target.files?.[0];
+
+                if (file && file.size <= 5 * 1024 * 1024) { const r = new FileReader(); r.onloadend = () => setForm({ ...form, image: r.result }); r.readAsDataURL(file); }
+
+                else if (file) alert('Image must be under 5MB');
+
+              }} />
+
+              <label htmlFor={`proj-img-${form.id}`} className="text-sm text-emerald-400 hover:text-emerald-300 cursor-pointer">Upload</label>
+
+              {form.image && <button type="button" onClick={() => setForm({ ...form, image: '' })} className="text-sm text-red-400 hover:text-red-300 ml-2">Remove</button>}
+
+            </div>
+
+          </div>
+
+        </div>
+
         <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://..." />
 
         <InputField label="Tech Stack / Category" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node — or: Book, Podcast, Course..." />
@@ -996,14 +1092,15 @@ function ProjectsEditor({ data, updateData }) {
 
               <div className="flex justify-between items-start gap-2">
 
-                <div className="flex-1">
-
+                {proj.image && (
+                  <div className="w-14 h-14 rounded flex-shrink-0 overflow-hidden bg-slate-600">
+                    <img src={proj.image} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
                   <h3 className="font-bold text-white flex items-center gap-2">{proj.title} {proj.featured && <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded">Featured</span>}</h3>
-
                   <p className="text-slate-300 text-sm mt-2">{proj.description}</p>
-
                   {proj.tech && <p className="text-xs text-slate-400 mt-2">🛠️ {proj.tech}</p>}
-
                 </div>
 
                 <div className="flex gap-2">
@@ -1429,24 +1526,36 @@ export function PublicPortfolio({ data, username = '' }) {
   const otherProjects = (data.projects || []).filter((p) => !p.featured);
   const allProjects = data.projects || [];
   const socials = data.socials || [];
+  const heroImg = data.bio?.heroImage || data.bio?.profilePicture;
 
   return (
     <div className="font-sans text-slate-200">
       {/* Hero — identity over credentials */}
-      <section className="min-h-[85vh] flex flex-col justify-center px-6 py-20 max-w-4xl mx-auto">
-        <p className="text-slate-400 text-lg mb-4 font-medium">Hello. My name is</p>
-        <h1 className="font-serif text-5xl md:text-7xl font-semibold text-white leading-tight tracking-tight mb-6">
-          {name}.
-        </h1>
-        {tagline && (
-          <p className="font-serif text-2xl md:text-3xl text-slate-300 italic leading-relaxed max-w-2xl">
-            {tagline}
-          </p>
-        )}
-        {!tagline && (
-          <p className="text-slate-500 text-sm">Add a tagline in your bio — e.g. &quot;I make things with words&quot;</p>
-        )}
-        <div className="mt-16 text-slate-500 text-sm animate-bounce">↓ scroll</div>
+      <section className="min-h-[85vh] flex flex-col md:flex-row md:items-center justify-between gap-12 px-6 py-20 max-w-6xl mx-auto">
+        <div className="flex-1">
+          <p className="text-slate-400 text-lg mb-4 font-medium">Hello. My name is</p>
+          <h1 className="font-serif text-5xl md:text-7xl font-semibold text-white leading-tight tracking-tight mb-6">
+            {name}.
+          </h1>
+          {tagline && (
+            <p className="font-serif text-2xl md:text-3xl text-slate-300 italic leading-relaxed max-w-2xl">
+              {tagline}
+            </p>
+          )}
+          {!tagline && (
+            <p className="text-slate-500 text-sm">Add a tagline in your bio — e.g. &quot;I make things with words&quot;</p>
+          )}
+          <div className="mt-16 text-slate-500 text-sm animate-bounce">↓ scroll</div>
+        </div>
+        <div className="flex-shrink-0 w-full md:w-[380px] aspect-[4/3] md:aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center">
+          {heroImg ? (
+            <img src={heroImg} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-slate-600 text-center p-8">
+              <p className="text-sm">Add a profile or hero image in Bio & Info</p>
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Featured Work — full narrative sections */}
@@ -1458,6 +1567,11 @@ export function PublicPortfolio({ data, username = '' }) {
             className="py-20 md:py-28 px-6 border-t border-slate-700/50"
           >
             <div className="max-w-2xl mx-auto">
+              {proj.image && (
+                <div className="mb-8 rounded-lg overflow-hidden aspect-video bg-slate-800">
+                  <img src={proj.image} alt={proj.title} className="w-full h-full object-cover" />
+                </div>
+              )}
               <h2 className="font-serif text-3xl md:text-4xl font-semibold text-white mb-6">
                 {proj.title}
               </h2>
@@ -1504,27 +1618,34 @@ export function PublicPortfolio({ data, username = '' }) {
             <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">
               Things I&apos;ve Made
             </h2>
-            <ul className="space-y-4">
+            <ul className="space-y-6">
               {allProjects.map((proj) => (
-                <li key={proj.id} className="group">
-                  {proj.link ? (
-                    <a
-                      href={proj.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-baseline gap-3 text-slate-300 hover:text-emerald-400 transition"
-                    >
-                      <span className="font-medium text-lg group-hover:translate-x-1 transition-transform">
-                        {proj.title}
-                      </span>
-                      <span className="text-slate-500 text-sm">→</span>
-                    </a>
-                  ) : (
-                    <span className="text-slate-300 text-lg">{proj.title}</span>
+                <li key={proj.id} className="group flex gap-4 items-start">
+                  {proj.image && (
+                    <div className="w-24 h-24 flex-shrink-0 rounded-lg overflow-hidden bg-slate-800 border border-slate-700">
+                      <img src={proj.image} alt="" className="w-full h-full object-cover" />
+                    </div>
                   )}
-                  {proj.tech && (
-                    <span className="text-slate-500 text-sm ml-0 block mt-0.5">{proj.tech}</span>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    {proj.link ? (
+                      <a
+                        href={proj.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-baseline gap-2 text-slate-300 hover:text-emerald-400 transition"
+                      >
+                        <span className="font-medium text-lg group-hover:translate-x-1 transition-transform">
+                          {proj.title}
+                        </span>
+                        <span className="text-slate-500 text-sm">→</span>
+                      </a>
+                    ) : (
+                      <span className="text-slate-300 text-lg">{proj.title}</span>
+                    )}
+                    {proj.tech && (
+                      <span className="text-slate-500 text-sm block mt-0.5">{proj.tech}</span>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

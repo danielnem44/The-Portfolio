@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { PublicPortfolio } from './PortfolioCMS';
 
 const emptyData = {
-  bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '' },
+  bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' },
   experiences: [],
   projects: [],
   blog: [],
