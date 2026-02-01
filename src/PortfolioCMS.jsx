@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { Link } from 'react-router-dom';
 import { LogOut, Plus, Edit, Trash2, Save, X, Upload, User } from 'lucide-react';
 
 import bioIcon from '../assets/bio and info.png';
@@ -38,9 +38,21 @@ export default function PortfolioCMS() {
 
       const savedPortfolio = localStorage.getItem('portfolio_data');
 
+      const activeUser = localStorage.getItem('portfolio_active_user');
+
       if (savedUsers) setUsers(JSON.parse(savedUsers));
 
       if (savedPortfolio) setPortfolio(JSON.parse(savedPortfolio));
+
+      if (activeUser && savedUsers && JSON.parse(savedUsers)[activeUser]) {
+
+        setCurrentUser(activeUser);
+
+        setIsLoggedIn(true);
+
+        setCurrentPage('dashboard');
+
+      }
 
     } catch (e) {
 
@@ -88,6 +100,8 @@ export default function PortfolioCMS() {
 
     setCurrentPage('dashboard');
 
+    localStorage.setItem('portfolio_active_user', username);
+
   };
 
 
@@ -103,6 +117,8 @@ export default function PortfolioCMS() {
       setIsLoggedIn(true);
 
       setCurrentPage('dashboard');
+
+      localStorage.setItem('portfolio_active_user', username);
 
     } else {
 
@@ -121,6 +137,8 @@ export default function PortfolioCMS() {
     setCurrentUser(null);
 
     setCurrentPage('login');
+
+    localStorage.removeItem('portfolio_active_user');
 
   };
 
@@ -178,7 +196,7 @@ export default function PortfolioCMS() {
 
               <NavBtn page="dashboard" current={currentPage} setPage={setCurrentPage} label="Dashboard" />
 
-              <NavBtn page="public" current={currentPage} setPage={setCurrentPage} label="Preview" />
+              <Link to="/" target="_blank" className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 transition font-medium">View Site</Link>
 
             </div>
 
@@ -211,8 +229,6 @@ export default function PortfolioCMS() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {currentPage === 'dashboard' && <Dashboard data={getUserData()} updateData={updateUserData} />}
-
-        {currentPage === 'public' && <PublicPortfolio data={getUserData()} username={currentUser} />}
 
       </div>
 
@@ -1406,7 +1422,7 @@ function SocialsEditor({ data, updateData }) {
 
 
 
-function PublicPortfolio({ data, username }) {
+export function PublicPortfolio({ data, username = '' }) {
   const name = data.bio?.name || username;
   const tagline = data.bio?.tagline || '';
   const featuredProjects = (data.projects || []).filter((p) => p.featured);
