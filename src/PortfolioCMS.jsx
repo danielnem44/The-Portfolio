@@ -48,37 +48,24 @@ export default function PortfolioCMS() {
 
 
 
-  // Check if user is already logged in on mount
+  // Check if user is already logged in on mount (Supabase session)
   useEffect(() => {
 
-    const token = localStorage.getItem('sentinel_token');
+    authAPI.getSession().then(session => {
 
-    if (token) {
+      if (session) {
 
-      // Try to get current user to verify token is valid
-      authAPI.getCurrentUser()
+        setCurrentUser(session.user.email);
 
-        .then(user => {
+        setIsLoggedIn(true);
 
-          setCurrentUser(user.email);
+        setCurrentPage('dashboard');
 
-          setIsLoggedIn(true);
+        loadPortfolioData();
 
-          setCurrentPage('dashboard');
+      }
 
-          loadPortfolioData();
-
-        })
-
-        .catch(() => {
-
-          // Token is invalid, remove it
-
-          authAPI.logout();
-
-        });
-
-    }
+    }).catch(() => {});
 
   }, []);
 
@@ -111,21 +98,7 @@ export default function PortfolioCMS() {
 
       setPortfolio({
 
-        bio: bio ? {
-
-          name: bio.name || '',
-
-          title: bio.title || '',
-
-          about: bio.about || '',
-
-          email: bio.email || '',
-
-          phone: bio.phone || '',
-
-          profilePicture: bio.profile_picture || ''
-
-        } : { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' },
+        bio: bio || { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' },
 
         experiences: experiences || [],
 

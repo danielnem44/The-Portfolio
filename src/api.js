@@ -1,266 +1,303 @@
 /**
- * API service for Sentinel backend
- * Handles all API calls to the Sentinel backend
+ * API service — powered by Supabase
+ * Replaces the Sentinel backend with Supabase auth + database
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001';
+import { createClient } from '@supabase/supabase-js';
 
-// Helper function to get auth token from localStorage
-const getAuthToken = () => {
-  return localStorage.getItem('sentinel_token');
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// ─── helpers ──────────────────────────────────────────────────────────────────
+
+const getUserId = async () => {
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error('Not authenticated');
+  return user.id;
 };
 
-// Helper function to set auth token
-const setAuthToken = (token) => {
-  localStorage.setItem('sentinel_token', token);
-};
+// ─── AUTH ─────────────────────────────────────────────────────────────────────
 
-// Helper function to remove auth token
-const removeAuthToken = () => {
-  localStorage.removeItem('sentinel_token');
-};
-
-// Helper function to make API requests
-const apiRequest = async (endpoint, options = {}) => {
-  const token = getAuthToken();
-  const headers = {
-    'Content-Type': 'application/json',
-    ...options.headers,
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
-  try {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-      ...options,
-      headers,
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      let error;
-      try {
-        error = JSON.parse(errorText);
-      } catch {
-        error = { detail: errorText || `HTTP error! status: ${response.status}` };
-      }
-      console.error(`API Error [${response.status}]:`, error);
-      throw new Error(error.detail || error.message || `HTTP error! status: ${response.status}`);
-    }
-
-    // Handle 204 No Content responses
-    if (response.status === 204) {
-      return null;
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error(`API Request failed for ${endpoint}:`, error);
-    throw error;
-  }
-};
-
-// Auth API
 export const authAPI = {
-  register: async (email, password) => {
-    const response = await apiRequest('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    return response;
-  },
-
   login: async (email, password) => {
-    const formData = new URLSearchParams();
-    formData.append('username', email);
-    formData.append('password', password);
-
-    const response = await fetch(`${API_BASE_URL}/api/auth/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Invalid credentials' }));
-      throw new Error(error.detail || 'Login failed');
-    }
-
-    const data = await response.json();
-    if (data.access_token) {
-      setAuthToken(data.access_token);
-    }
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message);
     return data;
   },
 
-  logout: () => {
-    removeAuthToken();
+  register: async (email, password) => {
+    const { data, error } = await supabase.auth.signUp({ email, password });
+    if (error) throw new Error(error.message);
+    return data;
+  },
+
+  logout: async () => {
+    await supabase.auth.signOut();
   },
 
   getCurrentUser: async () => {
-    return await apiRequest('/api/auth/me');
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (error || !user) throw new Error('Not authenticated');
+    return { email: user.email, id: user.id };
+  },
+
+  getSession: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
   },
 };
 
-// Portfolio API
+// ─── PORTFOLIO ────────────────────────────────────────────────────────────────
+
 export const portfolioAPI = {
-  // Bio
+
+  // ── Bio ────────────────────────────────────────────────────────────────────
   getBio: async () => {
-    return await apiRequest('/api/portfolio/bio');
+    const { data, error } = await supabase
+      .from('bio')
+      .select('*')
+      .limit(1)
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    if (!data) return { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' };
+
+    return {
+      name: data.name || '',
+      title: data.title || '',
+      tagline: data.tagline || '',
+      about: data.about || '',
+      email: data.email || '',
+      phone: data.phone || '',
+      profilePicture: data.profile_picture || '',
+      heroImage: data.hero_image || '',
+    };
   },
 
-  createOrUpdateBio: async (bioData) => {
-    return await apiRequest('/api/portfolio/bio', {
-      method: 'POST',
-      body: JSON.stringify(bioData),
-    });
+  saveBio: async (bioData) => {
+    const userId = await getUserId();
+    const { data, error } = await supabase
+      .from('bio')
+      .upsert({
+        user_id: userId,
+        name: bioData.name || '',
+        title: bioData.title || '',
+        tagline: bioData.tagline || '',
+        about: bioData.about || '',
+        email: bioData.email || '',
+        phone: bioData.phone || '',
+        profile_picture: bioData.profilePicture || '',
+        hero_image: bioData.heroImage || '',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'user_id' })
+      .select()
+      .maybeSingle();
+
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  updateBio: async (bioData) => {
-    return await apiRequest('/api/portfolio/bio', {
-      method: 'PUT',
-      body: JSON.stringify(bioData),
-    });
-  },
-
-  // Experiences
+  // ── Experiences ────────────────────────────────────────────────────────────
   getExperiences: async () => {
-    return await apiRequest('/api/portfolio/experiences');
+    const { data, error } = await supabase
+      .from('experiences')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
-  createExperience: async (experienceData) => {
-    return await apiRequest('/api/portfolio/experiences', {
-      method: 'POST',
-      body: JSON.stringify(experienceData),
-    });
+  createExperience: async (expData) => {
+    const userId = await getUserId();
+    const { id: _id, ...rest } = expData;
+    const { data, error } = await supabase
+      .from('experiences')
+      .insert({ ...rest, user_id: userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  updateExperience: async (experienceId, experienceData) => {
-    return await apiRequest(`/api/portfolio/experiences/${experienceId}`, {
-      method: 'PUT',
-      body: JSON.stringify(experienceData),
-    });
+  updateExperience: async (id, expData) => {
+    const { id: _id, user_id: _uid, ...rest } = expData;
+    const { data, error } = await supabase
+      .from('experiences')
+      .update(rest)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  deleteExperience: async (experienceId) => {
-    return await apiRequest(`/api/portfolio/experiences/${experienceId}`, {
-      method: 'DELETE',
-    });
+  deleteExperience: async (id) => {
+    const { error } = await supabase.from('experiences').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 
-  // Projects
+  // ── Projects ───────────────────────────────────────────────────────────────
   getProjects: async () => {
-    return await apiRequest('/api/portfolio/projects');
+    const { data, error } = await supabase
+      .from('projects')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return (data || []).map(p => ({
+      ...p,
+      featuredDescription: p.featured_description || '',
+      featured_description: undefined,
+    }));
   },
 
-  createProject: async (projectData) => {
-    return await apiRequest('/api/portfolio/projects', {
-      method: 'POST',
-      body: JSON.stringify(projectData),
-    });
+  createProject: async (projData) => {
+    const userId = await getUserId();
+    const { id: _id, featuredDescription, ...rest } = projData;
+    const { data, error } = await supabase
+      .from('projects')
+      .insert({ ...rest, featured_description: featuredDescription || '', user_id: userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { ...data, featuredDescription: data.featured_description || '' };
   },
 
-  updateProject: async (projectId, projectData) => {
-    return await apiRequest(`/api/portfolio/projects/${projectId}`, {
-      method: 'PUT',
-      body: JSON.stringify(projectData),
-    });
+  updateProject: async (id, projData) => {
+    const { id: _id, user_id: _uid, featuredDescription, ...rest } = projData;
+    const { data, error } = await supabase
+      .from('projects')
+      .update({ ...rest, featured_description: featuredDescription || '' })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return { ...data, featuredDescription: data.featured_description || '' };
   },
 
-  deleteProject: async (projectId) => {
-    return await apiRequest(`/api/portfolio/projects/${projectId}`, {
-      method: 'DELETE',
-    });
+  deleteProject: async (id) => {
+    const { error } = await supabase.from('projects').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 
-  // Blogs
+  // ── Blog ───────────────────────────────────────────────────────────────────
   getBlogs: async () => {
-    return await apiRequest('/api/portfolio/blogs');
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   createBlog: async (blogData) => {
-    return await apiRequest('/api/portfolio/blogs', {
-      method: 'POST',
-      body: JSON.stringify(blogData),
-    });
+    const userId = await getUserId();
+    const { id: _id, ...rest } = blogData;
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .insert({ ...rest, user_id: userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  updateBlog: async (blogId, blogData) => {
-    return await apiRequest(`/api/portfolio/blogs/${blogId}`, {
-      method: 'PUT',
-      body: JSON.stringify(blogData),
-    });
+  updateBlog: async (id, blogData) => {
+    const { id: _id, user_id: _uid, ...rest } = blogData;
+    const { data, error } = await supabase
+      .from('blog_posts')
+      .update(rest)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  deleteBlog: async (blogId) => {
-    return await apiRequest(`/api/portfolio/blogs/${blogId}`, {
-      method: 'DELETE',
-    });
+  deleteBlog: async (id) => {
+    const { error } = await supabase.from('blog_posts').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 
-  // Socials
+  // ── Socials ────────────────────────────────────────────────────────────────
   getSocials: async () => {
-    return await apiRequest('/api/portfolio/socials');
+    const { data, error } = await supabase
+      .from('socials')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
   createSocial: async (socialData) => {
-    return await apiRequest('/api/portfolio/socials', {
-      method: 'POST',
-      body: JSON.stringify(socialData),
-    });
+    const userId = await getUserId();
+    const { id: _id, ...rest } = socialData;
+    const { data, error } = await supabase
+      .from('socials')
+      .insert({ ...rest, user_id: userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  updateSocial: async (socialId, socialData) => {
-    return await apiRequest(`/api/portfolio/socials/${socialId}`, {
-      method: 'PUT',
-      body: JSON.stringify(socialData),
-    });
+  updateSocial: async (id, socialData) => {
+    const { id: _id, user_id: _uid, ...rest } = socialData;
+    const { data, error } = await supabase
+      .from('socials')
+      .update(rest)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  deleteSocial: async (socialId) => {
-    return await apiRequest(`/api/portfolio/socials/${socialId}`, {
-      method: 'DELETE',
-    });
+  deleteSocial: async (id) => {
+    const { error } = await supabase.from('socials').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 };
 
-// Education API (localStorage-based — backend endpoint not yet available)
-const EDUCATION_KEY = 'portfolio_education';
+// ─── EDUCATION ────────────────────────────────────────────────────────────────
 
 export const educationAPI = {
   getEducation: async () => {
-    try {
-      const data = localStorage.getItem(EDUCATION_KEY);
-      return data ? JSON.parse(data) : [];
-    } catch {
-      return [];
-    }
+    const { data, error } = await supabase
+      .from('education')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data || [];
   },
 
-  createEducation: async (educationData) => {
-    const current = JSON.parse(localStorage.getItem(EDUCATION_KEY) || '[]');
-    const newItem = { ...educationData, id: Date.now().toString() };
-    current.push(newItem);
-    localStorage.setItem(EDUCATION_KEY, JSON.stringify(current));
-    return newItem;
+  createEducation: async (eduData) => {
+    const userId = await getUserId();
+    const { id: _id, ...rest } = eduData;
+    const { data, error } = await supabase
+      .from('education')
+      .insert({ ...rest, user_id: userId })
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  updateEducation: async (educationId, educationData) => {
-    const current = JSON.parse(localStorage.getItem(EDUCATION_KEY) || '[]');
-    const updated = current.map(e => e.id === educationId ? { ...educationData, id: educationId } : e);
-    localStorage.setItem(EDUCATION_KEY, JSON.stringify(updated));
-    return { ...educationData, id: educationId };
+  updateEducation: async (id, eduData) => {
+    const { id: _id, user_id: _uid, ...rest } = eduData;
+    const { data, error } = await supabase
+      .from('education')
+      .update(rest)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw new Error(error.message);
+    return data;
   },
 
-  deleteEducation: async (educationId) => {
-    const current = JSON.parse(localStorage.getItem(EDUCATION_KEY) || '[]');
-    const filtered = current.filter(e => e.id !== educationId);
-    localStorage.setItem(EDUCATION_KEY, JSON.stringify(filtered));
-    return null;
+  deleteEducation: async (id) => {
+    const { error } = await supabase.from('education').delete().eq('id', id);
+    if (error) throw new Error(error.message);
   },
 };
-
