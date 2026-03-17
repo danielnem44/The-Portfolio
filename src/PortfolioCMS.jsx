@@ -14,7 +14,21 @@ import socialIcon from '../assets/social.png';
 
 import contentIcon from '../assets/content.png';
 
-import { authAPI, portfolioAPI, educationAPI } from './api';
+import { authAPI, portfolioAPI, educationAPI, supabase } from './api';
+
+// Upload image to Supabase Storage, return public URL
+async function uploadToStorage(file, folder = 'bio') {
+  const ext = file.name.split('.').pop();
+  const path = `${folder}/${Date.now()}.${ext}`;
+  const { data, error } = await supabase.storage
+    .from('portfolio-images')
+    .upload(path, file, { upsert: true });
+  if (error) throw new Error('Image upload failed: ' + error.message);
+  const { data: { publicUrl } } = supabase.storage
+    .from('portfolio-images')
+    .getPublicUrl(data.path);
+  return publicUrl;
+}
 
 
 
@@ -602,37 +616,31 @@ function BioEditor({ data, updateData }) {
 
 
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
 
     const file = e.target.files[0];
 
-    if (file) {
+    if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/')) { alert('Please select an image file'); return; }
 
-        alert('Please select an image file');
+    if (file.size > 5 * 1024 * 1024) { alert('Image size must be less than 5MB'); return; }
 
-        return;
+    try {
 
-      }
+      setSaving(true);
 
-      if (file.size > 5 * 1024 * 1024) {
+      const url = await uploadToStorage(file, 'bio');
 
-        alert('Image size must be less than 5MB');
+      setForm(prev => ({ ...prev, profilePicture: url }));
 
-        return;
+    } catch (err) {
 
-      }
+      alert(err.message);
 
-      const reader = new FileReader();
+    } finally {
 
-      reader.onloadend = () => {
-
-        setForm({ ...form, profilePicture: reader.result });
-
-      };
-
-      reader.readAsDataURL(file);
+      setSaving(false);
 
     }
 
@@ -838,19 +846,23 @@ function BioEditor({ data, updateData }) {
 
             <div className="flex gap-2 mt-2">
 
-              <input type="file" accept="image/*" id="hero-image-input" className="hidden" onChange={(e) => {
+              <input type="file" accept="image/*" id="hero-image-input" className="hidden" onChange={async (e) => {
 
                 const file = e.target.files?.[0];
 
-                if (file && file.size <= 5 * 1024 * 1024) {
+                if (!file) return;
 
-                  const reader = new FileReader();
+                if (file.size > 5 * 1024 * 1024) { alert('Image must be under 5MB'); return; }
 
-                  reader.onloadend = () => setForm({ ...form, heroImage: reader.result });
+                try {
 
-                  reader.readAsDataURL(file);
+                  setSaving(true);
 
-                } else if (file) alert('Image must be under 5MB');
+                  const url = await uploadToStorage(file, 'hero');
+
+                  setForm(prev => ({ ...prev, heroImage: url }));
+
+                } catch (err) { alert(err.message); } finally { setSaving(false); }
 
               }} />
 
