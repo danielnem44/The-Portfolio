@@ -884,7 +884,7 @@ function BioEditor({ data, updateData }) {
 
         <InputField label="Full Name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
 
-        <InputField label="Tagline / Identity Statement" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} placeholder="e.g. I make things with words" />
+        <InputField label="Tagline / Identity Statement" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} placeholder="" />
 
         <InputField label="Professional Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="e.g. Writer & Teacher (optional)" />
 
