@@ -78,25 +78,42 @@ export const portfolioAPI = {
 
   saveBio: async (bioData) => {
     const userId = await getUserId();
-    const { data, error } = await supabase
+
+    const payload = {
+      name: bioData.name || '',
+      title: bioData.title || '',
+      tagline: bioData.tagline || '',
+      about: bioData.about || '',
+      email: bioData.email || '',
+      phone: bioData.phone || '',
+      profile_picture: bioData.profilePicture || '',
+      hero_image: bioData.heroImage || '',
+      updated_at: new Date().toISOString(),
+    };
+
+    // Check if row already exists for this user
+    const { data: existing } = await supabase
       .from('bio')
-      .upsert({
-        user_id: userId,
-        name: bioData.name || '',
-        title: bioData.title || '',
-        tagline: bioData.tagline || '',
-        about: bioData.about || '',
-        email: bioData.email || '',
-        phone: bioData.phone || '',
-        profile_picture: bioData.profilePicture || '',
-        hero_image: bioData.heroImage || '',
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'user_id' })
-      .select()
+      .select('id')
+      .eq('user_id', userId)
       .maybeSingle();
 
+    let error;
+    if (existing) {
+      // UPDATE existing row
+      ({ error } = await supabase
+        .from('bio')
+        .update(payload)
+        .eq('user_id', userId));
+    } else {
+      // INSERT new row
+      ({ error } = await supabase
+        .from('bio')
+        .insert({ ...payload, user_id: userId }));
+    }
+
     if (error) throw new Error(error.message);
-    return data;
+    return { ...payload, profilePicture: payload.profile_picture, heroImage: payload.hero_image };
   },
 
   // ── Experiences ────────────────────────────────────────────────────────────
