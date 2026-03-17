@@ -2169,18 +2169,12 @@ export function PublicPortfolio({ data, username = '' }) {
             <p className="font-serif text-2xl md:text-3xl text-slate-300 italic leading-relaxed max-w-2xl">
               {tagline}
             </p>
-          ) : (
-            <p className="text-slate-500 text-sm">Add a tagline in your bio — e.g. &quot;Self-taught designer building apps that matter&quot;</p>
-          )}
+          ) : null}
           <div className="mt-16 text-slate-500 text-sm animate-bounce">↓ scroll</div>
         </div>
         <div className="flex-shrink-0 w-full md:w-[380px] aspect-[4/3] md:aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center">
-          {heroImg ? (
+          {heroImg && (
             <img src={heroImg} alt="" className="w-full h-full object-cover" />
-          ) : (
-            <div className="text-slate-600 text-center p-8">
-              <p className="text-sm">Add a profile or hero image in Bio &amp; Info</p>
-            </div>
           )}
         </div>
       </section>
