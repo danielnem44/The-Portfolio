@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-import { LogOut, Plus, Edit, Trash2, Save, X, Upload, User } from 'lucide-react';
+import { LogOut, Plus, Edit, Trash2, Save, X, Upload, User, Loader2 } from 'lucide-react';
 
 import bioIcon from '../assets/bio and info.png';
 
@@ -14,6 +14,8 @@ import socialIcon from '../assets/social.png';
 
 import contentIcon from '../assets/content.png';
 
+import { authAPI, portfolioAPI, educationAPI } from './api';
+
 
 
 export default function PortfolioCMS() {
@@ -24,109 +26,9 @@ export default function PortfolioCMS() {
 
   const [currentPage, setCurrentPage] = useState('login');
 
-  const [users, setUsers] = useState({});
+  const [loading, setLoading] = useState(false);
 
-  const [portfolio, setPortfolio] = useState({});
-
-
-
-  useEffect(() => {
-
-    try {
-
-      const savedUsers = localStorage.getItem('portfolio_users');
-
-      const savedPortfolio = localStorage.getItem('portfolio_data');
-
-      if (savedUsers) setUsers(JSON.parse(savedUsers));
-
-      if (savedPortfolio) setPortfolio(JSON.parse(savedPortfolio));
-
-    } catch (e) {
-
-      console.log('First time setup');
-
-    }
-
-  }, []);
-
-
-
-  useEffect(() => {
-
-    localStorage.setItem('portfolio_users', JSON.stringify(users));
-
-  }, [users]);
-
-
-
-  useEffect(() => {
-
-    localStorage.setItem('portfolio_data', JSON.stringify(portfolio));
-
-  }, [portfolio]);
-
-
-
-  const handleSignup = (e, username, password, email) => {
-
-    e.preventDefault();
-
-    if (users[username]) {
-
-      alert('Username taken homie 🔐');
-
-      return;
-
-    }
-
-    setUsers({ ...users, [username]: { username, password, email } });
-
-    setCurrentUser(username);
-
-    setIsLoggedIn(true);
-
-    setCurrentPage('dashboard');
-
-  };
-
-
-
-  const handleLogin = (e, username, password) => {
-
-    e.preventDefault();
-
-    if (users[username] && users[username].password === password) {
-
-      setCurrentUser(username);
-
-      setIsLoggedIn(true);
-
-      setCurrentPage('dashboard');
-
-    } else {
-
-      alert('Invalid credentials fam ❌');
-
-    }
-
-  };
-
-
-
-  const handleLogout = () => {
-
-    setIsLoggedIn(false);
-
-    setCurrentUser(null);
-
-    setCurrentPage('login');
-
-  };
-
-
-
-  const getUserData = () => portfolio[currentUser] || {
+  const [portfolio, setPortfolio] = useState({
 
     bio: { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' },
 
@@ -136,15 +38,258 @@ export default function PortfolioCMS() {
 
     blog: [],
 
-    socials: []
+    socials: [],
+
+    education: []
+
+  });
+
+
+
+  // Check if user is already logged in on mount
+  useEffect(() => {
+
+    const token = localStorage.getItem('sentinel_token');
+
+    if (token) {
+
+      // Try to get current user to verify token is valid
+      authAPI.getCurrentUser()
+
+        .then(user => {
+
+          setCurrentUser(user.email);
+
+          setIsLoggedIn(true);
+
+          setCurrentPage('dashboard');
+
+          loadPortfolioData();
+
+        })
+
+        .catch(() => {
+
+          // Token is invalid, remove it
+
+          authAPI.logout();
+
+        });
+
+    }
+
+  }, []);
+
+
+
+  // Load portfolio data from API
+  const loadPortfolioData = async () => {
+
+    try {
+
+      setLoading(true);
+
+      const [bio, experiences, projects, blogs, socials, education] = await Promise.all([
+
+        portfolioAPI.getBio().catch(() => null),
+
+        portfolioAPI.getExperiences().catch(() => []),
+
+        portfolioAPI.getProjects().catch(() => []),
+
+        portfolioAPI.getBlogs().catch(() => []),
+
+        portfolioAPI.getSocials().catch(() => []),
+
+        educationAPI.getEducation().catch(() => [])
+
+      ]);
+
+
+
+      setPortfolio({
+
+        bio: bio ? {
+
+          name: bio.name || '',
+
+          title: bio.title || '',
+
+          about: bio.about || '',
+
+          email: bio.email || '',
+
+          phone: bio.phone || '',
+
+          profilePicture: bio.profile_picture || ''
+
+        } : { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' },
+
+        experiences: experiences || [],
+
+        projects: projects || [],
+
+        blog: blogs || [],
+
+        socials: socials || [],
+
+        education: education || []
+
+      });
+
+    } catch (error) {
+
+      console.error('Error loading portfolio data:', error);
+
+    } finally {
+
+      setLoading(false);
+
+    }
 
   };
 
 
 
-  const updateUserData = (newData) => {
+  const handleSignup = async (e, email, password) => {
 
-    setPortfolio({ ...portfolio, [currentUser]: newData });
+    e.preventDefault();
+
+    try {
+
+      setLoading(true);
+
+      await authAPI.register(email, password);
+
+      // After registration, login automatically
+
+      await authAPI.login(email, password);
+
+      setCurrentUser(email);
+
+      setIsLoggedIn(true);
+
+      setCurrentPage('dashboard');
+
+      await loadPortfolioData();
+
+    } catch (error) {
+
+      alert(error.message || 'Registration failed. Please try again.');
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+
+  const handleLogin = async (e, email, password) => {
+
+    e.preventDefault();
+
+    try {
+
+      setLoading(true);
+
+      await authAPI.login(email, password);
+
+      setCurrentUser(email);
+
+      setIsLoggedIn(true);
+
+      setCurrentPage('dashboard');
+
+      await loadPortfolioData();
+
+    } catch (error) {
+
+      alert(error.message || 'Invalid credentials fam ❌');
+
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  };
+
+
+
+  const handleLogout = () => {
+
+    authAPI.logout();
+
+    setIsLoggedIn(false);
+
+    setCurrentUser(null);
+
+    setCurrentPage('login');
+
+    setPortfolio({
+
+      bio: { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' },
+
+      experiences: [],
+
+      projects: [],
+
+      blog: [],
+
+      socials: [],
+
+      education: []
+
+    });
+
+  };
+
+
+
+  const getUserData = () => portfolio;
+
+
+
+  const updateUserData = async (newData) => {
+
+    setPortfolio(newData);
+
+    // Sync to API in background
+
+    try {
+
+      // Update bio if changed
+
+      if (newData.bio) {
+
+        const bioData = {
+
+          name: newData.bio.name,
+
+          title: newData.bio.title,
+
+          about: newData.bio.about,
+
+          email: newData.bio.email,
+
+          phone: newData.bio.phone,
+
+          profile_picture: newData.bio.profilePicture
+
+        };
+
+        await portfolioAPI.createOrUpdateBio(bioData);
+
+      }
+
+    } catch (error) {
+
+      console.error('Error updating bio:', error);
+
+    }
 
   };
 
@@ -152,7 +297,29 @@ export default function PortfolioCMS() {
 
   if (!isLoggedIn) {
 
-    return <AuthPage onSignup={handleSignup} onLogin={handleLogin} />;
+    return <AuthPage onSignup={handleSignup} onLogin={handleLogin} loading={loading} />;
+
+  }
+
+
+
+  if (loading && portfolio.experiences.length === 0 && portfolio.projects.length === 0) {
+
+    return (
+
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center">
+
+        <div className="text-center">
+
+          <Loader2 className="w-12 h-12 text-emerald-400 animate-spin mx-auto mb-4" />
+
+          <p className="text-slate-300">Loading your portfolio...</p>
+
+        </div>
+
+      </div>
+
+    );
 
   }
 
@@ -290,6 +457,8 @@ function Dashboard({ data, updateData }) {
 
             <TabBtn tab="experience" current={tab} setTab={setTab} label="Experience" icon={experienceIcon} />
 
+            <TabBtn tab="education" current={tab} setTab={setTab} label="Education" icon={bioIcon} />
+
             <TabBtn tab="projects" current={tab} setTab={setTab} label="Projects" icon={projectIcon} />
 
             <TabBtn tab="blog" current={tab} setTab={setTab} label="Blog" icon={blogIcon} />
@@ -311,6 +480,8 @@ function Dashboard({ data, updateData }) {
           {tab === 'bio' && <BioEditor data={data} updateData={updateData} />}
 
           {tab === 'experience' && <ExperienceEditor data={data} updateData={updateData} />}
+
+          {tab === 'education' && <EducationEditor data={data} updateData={updateData} />}
 
           {tab === 'projects' && <ProjectsEditor data={data} updateData={updateData} />}
 
@@ -432,9 +603,19 @@ function TextArea({ label, value, onChange, rows = 4, placeholder = '' }) {
 
 function BioEditor({ data, updateData }) {
 
-  const [form, setForm] = useState(data.bio);
+  const [form, setForm] = useState(data.bio || { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' });
+
+  const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef(null);
+
+
+
+  useEffect(() => {
+
+    setForm(data.bio || { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' });
+
+  }, [data.bio]);
 
 
 
@@ -490,11 +671,49 @@ function BioEditor({ data, updateData }) {
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
 
-    updateData({ ...data, bio: form });
+    try {
 
-    alert('Profile saved! ✅');
+      setSaving(true);
+
+      const bioData = {
+
+        name: form.name || null,
+
+        title: form.title || null,
+
+        about: form.about || null,
+
+        email: form.email || null,
+
+        phone: form.phone || null,
+
+        profile_picture: form.profilePicture || null
+
+      };
+
+      console.log('Saving bio data:', bioData);
+
+      const result = await portfolioAPI.createOrUpdateBio(bioData);
+
+      console.log('Bio saved successfully:', result);
+
+      updateData({ ...data, bio: form });
+
+      alert('Profile saved! ✅');
+
+    } catch (error) {
+
+      console.error('Error saving profile:', error);
+
+      alert('Error saving profile: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
+
+    }
 
   };
 
@@ -614,9 +833,19 @@ function BioEditor({ data, updateData }) {
 
       </div>
 
-      <button onClick={handleSave} className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+      <button 
 
-        <Save size={18} /> Save Changes
+        onClick={handleSave} 
+
+        disabled={saving}
+
+        className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white px-6 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50"
+
+      >
+
+        {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} 
+
+        {saving ? 'Saving...' : 'Save Changes'}
 
       </button>
 
@@ -634,13 +863,15 @@ function ExperienceEditor({ data, updateData }) {
 
   const [form, setForm] = useState(null);
 
+  const [saving, setSaving] = useState(false);
+
 
 
   const startNew = () => {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), company: '', position: '', startDate: '', endDate: '', description: '' });
+    setForm({ company: '', position: '', start_date: '', end_date: '', description: '' });
 
   };
 
@@ -650,13 +881,25 @@ function ExperienceEditor({ data, updateData }) {
 
     setEditing(exp.id);
 
-    setForm(exp);
+    setForm({
+
+      company: exp.company || '',
+
+      position: exp.position || '',
+
+      start_date: exp.start_date || '',
+
+      end_date: exp.end_date || '',
+
+      description: exp.description || ''
+
+    });
 
   };
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
 
     if (!form.position || !form.company) {
 
@@ -666,27 +909,57 @@ function ExperienceEditor({ data, updateData }) {
 
     }
 
-    if (editing === 'new') {
+    try {
 
-      updateData({ ...data, experiences: [...data.experiences, form] });
+      setSaving(true);
 
-    } else {
+      if (editing === 'new') {
 
-      updateData({ ...data, experiences: data.experiences.map(e => (e.id === form.id ? form : e)) });
+        const newExp = await portfolioAPI.createExperience(form);
+
+        updateData({ ...data, experiences: [...data.experiences, newExp] });
+
+      } else {
+
+        const updatedExp = await portfolioAPI.updateExperience(editing, form);
+
+        updateData({ ...data, experiences: data.experiences.map(e => (e.id === editing ? updatedExp : e)) });
+
+      }
+
+      setEditing(null);
+
+      setForm(null);
+
+    } catch (error) {
+
+      alert('Error saving experience: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
 
     }
-
-    setEditing(null);
-
-    setForm(null);
 
   };
 
 
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
 
-    updateData({ ...data, experiences: data.experiences.filter(e => e.id !== id) });
+    if (!confirm('Are you sure you want to delete this experience?')) return;
+
+    try {
+
+      await portfolioAPI.deleteExperience(id);
+
+      updateData({ ...data, experiences: data.experiences.filter(e => e.id !== id) });
+
+    } catch (error) {
+
+      alert('Error deleting experience: ' + error.message);
+
+    }
 
   };
 
@@ -706,9 +979,9 @@ function ExperienceEditor({ data, updateData }) {
 
         <div className="grid grid-cols-2 gap-4">
 
-          <InputField label="Start Date" value={form.startDate} onChange={(startDate) => setForm({ ...form, startDate })} placeholder="Jan 2020" />
+          <InputField label="Start Date" value={form.start_date} onChange={(start_date) => setForm({ ...form, start_date })} placeholder="Jan 2020" />
 
-          <InputField label="End Date" value={form.endDate} onChange={(endDate) => setForm({ ...form, endDate })} placeholder="Dec 2023" />
+          <InputField label="End Date" value={form.end_date} onChange={(end_date) => setForm({ ...form, end_date })} placeholder="Dec 2023" />
 
         </div>
 
@@ -716,9 +989,9 @@ function ExperienceEditor({ data, updateData }) {
 
         <div className="flex gap-2">
 
-          <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+          <button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50">
 
-            <Save size={18} /> Save
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save
 
           </button>
 
@@ -784,7 +1057,7 @@ function ExperienceEditor({ data, updateData }) {
 
                   <p className="text-emerald-400 font-medium">{exp.company}</p>
 
-                  <p className="text-sm text-slate-400 mt-1">{exp.startDate} → {exp.endDate || 'Current'}</p>
+                  <p className="text-sm text-slate-400 mt-1">{exp.start_date} → {exp.end_date || 'Current'}</p>
 
                   {exp.description && <p className="text-slate-300 mt-2 text-sm">{exp.description}</p>}
 
@@ -824,11 +1097,13 @@ function ExperienceEditor({ data, updateData }) {
 
 
 
-function ProjectsEditor({ data, updateData }) {
+function EducationEditor({ data, updateData }) {
 
   const [editing, setEditing] = useState(null);
 
   const [form, setForm] = useState(null);
+
+  const [saving, setSaving] = useState(false);
 
 
 
@@ -836,53 +1111,99 @@ function ProjectsEditor({ data, updateData }) {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), title: '', description: '', link: '', tech: '' });
+    setForm({ institution: '', degree: '', field: '', start_year: '', end_year: '', description: '', grade: '' });
 
   };
 
 
 
-  const startEdit = (proj) => {
+  const startEdit = (edu) => {
 
-    setEditing(proj.id);
+    setEditing(edu.id);
 
-    setForm(proj);
+    setForm({
+
+      institution: edu.institution || '',
+
+      degree: edu.degree || '',
+
+      field: edu.field || '',
+
+      start_year: edu.start_year || '',
+
+      end_year: edu.end_year || '',
+
+      description: edu.description || '',
+
+      grade: edu.grade || ''
+
+    });
 
   };
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
 
-    if (!form.title) {
+    if (!form.institution) {
 
-      alert('Project title is required');
+      alert('Institution name is required');
 
       return;
 
     }
 
-    if (editing === 'new') {
+    try {
 
-      updateData({ ...data, projects: [...data.projects, form] });
+      setSaving(true);
 
-    } else {
+      if (editing === 'new') {
 
-      updateData({ ...data, projects: data.projects.map(p => (p.id === form.id ? form : p)) });
+        const newEdu = await educationAPI.createEducation(form);
+
+        updateData({ ...data, education: [...(data.education || []), newEdu] });
+
+      } else {
+
+        const updatedEdu = await educationAPI.updateEducation(editing, form);
+
+        updateData({ ...data, education: (data.education || []).map(e => (e.id === editing ? updatedEdu : e)) });
+
+      }
+
+      setEditing(null);
+
+      setForm(null);
+
+    } catch (error) {
+
+      alert('Error saving education: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
 
     }
-
-    setEditing(null);
-
-    setForm(null);
 
   };
 
 
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
 
-    updateData({ ...data, projects: data.projects.filter(p => p.id !== id) });
+    if (!confirm('Delete this education entry?')) return;
+
+    try {
+
+      await educationAPI.deleteEducation(id);
+
+      updateData({ ...data, education: (data.education || []).filter(e => e.id !== id) });
+
+    } catch (error) {
+
+      alert('Error deleting: ' + error.message);
+
+    }
 
   };
 
@@ -894,21 +1215,295 @@ function ProjectsEditor({ data, updateData }) {
 
       <div className="space-y-4">
 
-        <h3 className="text-2xl font-bold text-white">Edit Project</h3>
+        <h3 className="text-2xl font-bold text-white">{editing === 'new' ? 'Add Education' : 'Edit Education'}</h3>
 
-        <InputField label="Project Title" value={form.title} onChange={(title) => setForm({ ...form, title })} />
+        <InputField label="Institution / School" value={form.institution} onChange={(institution) => setForm({ ...form, institution })} placeholder="University of Agder (UiA)" />
 
-        <TextArea label="Description" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={3} />
+        <InputField label="Degree" value={form.degree} onChange={(degree) => setForm({ ...form, degree })} placeholder="Bachelor's, Master's, Certificate..." />
 
-        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://github.com/..." />
+        <InputField label="Field of Study" value={form.field} onChange={(field) => setForm({ ...form, field })} placeholder="Multimedia Design, Computer Science..." />
 
-        <InputField label="Tech Stack" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node, MongoDB..." />
+        <div className="grid grid-cols-2 gap-4">
+
+          <InputField label="Start Year" value={form.start_year} onChange={(start_year) => setForm({ ...form, start_year })} placeholder="2022" />
+
+          <InputField label="End Year (or Expected)" value={form.end_year} onChange={(end_year) => setForm({ ...form, end_year })} placeholder="2025 / Present" />
+
+        </div>
+
+        <InputField label="Grade / GPA (optional)" value={form.grade} onChange={(grade) => setForm({ ...form, grade })} placeholder="A / 3.8 / Top of class..." />
+
+        <TextArea label="Description (optional)" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={3} placeholder="What you studied, projects, achievements..." />
 
         <div className="flex gap-2">
 
-          <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+          <button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50">
 
-            <Save size={18} /> Save
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save
+
+          </button>
+
+          <button onClick={() => { setEditing(null); setForm(null); }} className="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+
+            <X size={18} /> Cancel
+
+          </button>
+
+        </div>
+
+      </div>
+
+    );
+
+  }
+
+
+
+  return (
+
+    <div className="space-y-4">
+
+      <div className="flex justify-between items-center">
+
+        <h2 className="text-3xl font-bold text-white flex items-center gap-3">
+
+          <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+
+            <img src={bioIcon} alt="" className="w-6 h-6 brightness-0 invert" />
+
+          </div>
+
+          Education
+
+        </h2>
+
+        <button onClick={startNew} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+
+          <Plus size={18} /> Add Education
+
+        </button>
+
+      </div>
+
+      <div className="space-y-3">
+
+        {(data.education || []).length === 0 ? (
+
+          <p className="text-slate-400 py-8 text-center">No education added yet. Add your school or courses! 🎓</p>
+
+        ) : (
+
+          (data.education || []).map(edu => (
+
+            <div key={edu.id} className="bg-slate-700/50 rounded-lg p-4 border border-slate-600 hover:border-slate-500 transition">
+
+              <div className="flex justify-between items-start gap-2">
+
+                <div className="flex-1">
+
+                  <h3 className="font-bold text-white text-lg">{edu.institution}</h3>
+
+                  <p className="text-emerald-400 font-medium text-sm mt-1">{edu.degree}{edu.field ? ` — ${edu.field}` : ''}</p>
+
+                  <p className="text-slate-400 text-xs mt-1">{edu.start_year}{edu.end_year ? ` → ${edu.end_year}` : ''}{edu.grade ? ` · ${edu.grade}` : ''}</p>
+
+                  {edu.description && <p className="text-slate-300 text-sm mt-2">{edu.description}</p>}
+
+                </div>
+
+                <div className="flex gap-2">
+
+                  <button onClick={() => startEdit(edu)} className="bg-green-600/30 hover:bg-green-600/50 text-emerald-300 p-2 rounded transition shrink-0">
+
+                    <Edit size={18} />
+
+                  </button>
+
+                  <button onClick={() => handleDelete(edu.id)} className="bg-red-600/30 hover:bg-red-600/50 text-red-300 p-2 rounded transition shrink-0">
+
+                    <Trash2 size={18} />
+
+                  </button>
+
+                </div>
+
+              </div>
+
+            </div>
+
+          ))
+
+        )}
+
+      </div>
+
+    </div>
+
+  );
+
+}
+
+
+
+function ProjectsEditor({ data, updateData }) {
+
+  const [editing, setEditing] = useState(null);
+
+  const [form, setForm] = useState(null);
+
+  const [saving, setSaving] = useState(false);
+
+
+
+  const startNew = () => {
+
+    setEditing('new');
+
+    setForm({ title: '', description: '', link: '', tech: '', role: '', tools: '', status: '', timeline: '', problem: '', highlights: '' });
+
+  };
+
+
+
+  const startEdit = (proj) => {
+
+    setEditing(proj.id);
+
+    setForm({
+
+      title: proj.title || '',
+
+      description: proj.description || '',
+
+      link: proj.link || '',
+
+      tech: proj.tech || '',
+
+      role: proj.role || '',
+
+      tools: proj.tools || '',
+
+      status: proj.status || '',
+
+      timeline: proj.timeline || '',
+
+      problem: proj.problem || '',
+
+      highlights: proj.highlights || ''
+
+    });
+
+  };
+
+
+
+  const handleSave = async () => {
+
+    if (!form.title) {
+
+      alert('Project title is required');
+
+      return;
+
+    }
+
+    try {
+
+      setSaving(true);
+
+      if (editing === 'new') {
+
+        const newProj = await portfolioAPI.createProject(form);
+
+        updateData({ ...data, projects: [...data.projects, newProj] });
+
+      } else {
+
+        const updatedProj = await portfolioAPI.updateProject(editing, form);
+
+        updateData({ ...data, projects: data.projects.map(p => (p.id === editing ? updatedProj : p)) });
+
+      }
+
+      setEditing(null);
+
+      setForm(null);
+
+    } catch (error) {
+
+      alert('Error saving project: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
+
+    }
+
+  };
+
+
+
+  const handleDelete = async (id) => {
+
+    if (!confirm('Are you sure you want to delete this project?')) return;
+
+    try {
+
+      await portfolioAPI.deleteProject(id);
+
+      updateData({ ...data, projects: data.projects.filter(p => p.id !== id) });
+
+    } catch (error) {
+
+      alert('Error deleting project: ' + error.message);
+
+    }
+
+  };
+
+
+
+  if (editing !== null && form) {
+
+    return (
+
+      <div className="space-y-4">
+
+        <h3 className="text-2xl font-bold text-white">{editing === 'new' ? 'Add Project' : 'Edit Project'}</h3>
+
+        <InputField label="Project Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="Roots, Koinos..." />
+
+        <TextArea label="Short Description / Subtitle" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={2} placeholder="One-liner about what the project does..." />
+
+        <TextArea label="The Problem it Solves" value={form.problem} onChange={(problem) => setForm({ ...form, problem })} rows={3} placeholder="What real problem does this solve? Who is it for?" />
+
+        <TextArea label="Key Highlights / Features" value={form.highlights} onChange={(highlights) => setForm({ ...form, highlights })} rows={3} placeholder="List your key design decisions or features, one per line..." />
+
+        <div className="grid grid-cols-2 gap-4">
+
+          <InputField label="Your Role" value={form.role} onChange={(role) => setForm({ ...form, role })} placeholder="Sole Designer & Developer" />
+
+          <InputField label="Tools Used" value={form.tools} onChange={(tools) => setForm({ ...form, tools })} placeholder="Figma, React Native..." />
+
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+
+          <InputField label="Status" value={form.status} onChange={(status) => setForm({ ...form, status })} placeholder="Live, In Development..." />
+
+          <InputField label="Timeline" value={form.timeline} onChange={(timeline) => setForm({ ...form, timeline })} placeholder="Apr 2025 – Present" />
+
+        </div>
+
+        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://rootsapp.no" />
+
+        <InputField label="Tech Stack" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React Native, Node.js, Figma..." />
+
+        <div className="flex gap-2">
+
+          <button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50">
+
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save
 
           </button>
 
@@ -972,9 +1567,15 @@ function ProjectsEditor({ data, updateData }) {
 
                   <h3 className="font-bold text-white">{proj.title}</h3>
 
+                  {proj.status && <span className="text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 rounded-full px-2 py-0.5 mt-1 inline-block">{proj.status}</span>}
+
                   <p className="text-slate-300 text-sm mt-2">{proj.description}</p>
 
-                  {proj.tech && <p className="text-xs text-slate-400 mt-2">🛠️ {proj.tech}</p>}
+                  {proj.role && <p className="text-xs text-slate-400 mt-1">👤 {proj.role}</p>}
+
+                  {proj.tools && <p className="text-xs text-slate-400 mt-1">🛠️ {proj.tools}</p>}
+
+                  {proj.timeline && <p className="text-xs text-slate-400 mt-1">📅 {proj.timeline}</p>}
 
                 </div>
 
@@ -1018,13 +1619,15 @@ function BlogEditor({ data, updateData }) {
 
   const [form, setForm] = useState(null);
 
+  const [saving, setSaving] = useState(false);
+
 
 
   const startNew = () => {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), title: '', content: '', date: new Date().toISOString().split('T')[0] });
+    setForm({ title: '', content: '', date: new Date().toISOString().split('T')[0] });
 
   };
 
@@ -1034,13 +1637,21 @@ function BlogEditor({ data, updateData }) {
 
     setEditing(post.id);
 
-    setForm(post);
+    setForm({
+
+      title: post.title || '',
+
+      content: post.content || '',
+
+      date: post.date || new Date().toISOString().split('T')[0]
+
+    });
 
   };
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
 
     if (!form.title) {
 
@@ -1050,27 +1661,57 @@ function BlogEditor({ data, updateData }) {
 
     }
 
-    if (editing === 'new') {
+    try {
 
-      updateData({ ...data, blog: [...data.blog, form] });
+      setSaving(true);
 
-    } else {
+      if (editing === 'new') {
 
-      updateData({ ...data, blog: data.blog.map(p => (p.id === form.id ? form : p)) });
+        const newBlog = await portfolioAPI.createBlog(form);
+
+        updateData({ ...data, blog: [...data.blog, newBlog] });
+
+      } else {
+
+        const updatedBlog = await portfolioAPI.updateBlog(editing, form);
+
+        updateData({ ...data, blog: data.blog.map(p => (p.id === editing ? updatedBlog : p)) });
+
+      }
+
+      setEditing(null);
+
+      setForm(null);
+
+    } catch (error) {
+
+      alert('Error saving blog post: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
 
     }
-
-    setEditing(null);
-
-    setForm(null);
 
   };
 
 
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
 
-    updateData({ ...data, blog: data.blog.filter(p => p.id !== id) });
+    if (!confirm('Are you sure you want to delete this blog post?')) return;
+
+    try {
+
+      await portfolioAPI.deleteBlog(id);
+
+      updateData({ ...data, blog: data.blog.filter(p => p.id !== id) });
+
+    } catch (error) {
+
+      alert('Error deleting blog post: ' + error.message);
+
+    }
 
   };
 
@@ -1092,9 +1733,9 @@ function BlogEditor({ data, updateData }) {
 
         <div className="flex gap-2">
 
-          <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+          <button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50">
 
-            <Save size={18} /> Publish
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Publish
 
           </button>
 
@@ -1204,13 +1845,15 @@ function SocialsEditor({ data, updateData }) {
 
   const [form, setForm] = useState(null);
 
+  const [saving, setSaving] = useState(false);
+
 
 
   const startNew = () => {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), platform: '', url: '' });
+    setForm({ platform: '', url: '' });
 
   };
 
@@ -1220,13 +1863,19 @@ function SocialsEditor({ data, updateData }) {
 
     setEditing(social.id);
 
-    setForm(social);
+    setForm({
+
+      platform: social.platform || '',
+
+      url: social.url || ''
+
+    });
 
   };
 
 
 
-  const handleSave = () => {
+  const handleSave = async () => {
 
     if (!form.platform || !form.url) {
 
@@ -1236,27 +1885,73 @@ function SocialsEditor({ data, updateData }) {
 
     }
 
-    if (editing === 'new') {
+    try {
 
-      updateData({ ...data, socials: [...data.socials, form] });
+      setSaving(true);
 
-    } else {
+      const socialData = {
 
-      updateData({ ...data, socials: data.socials.map(s => (s.id === form.id ? form : s)) });
+        platform: form.platform,
+
+        url: form.url
+
+      };
+
+      console.log('Saving social data:', socialData);
+
+      if (editing === 'new') {
+
+        const newSocial = await portfolioAPI.createSocial(socialData);
+
+        console.log('Social created successfully:', newSocial);
+
+        updateData({ ...data, socials: [...data.socials, newSocial] });
+
+      } else {
+
+        const updatedSocial = await portfolioAPI.updateSocial(editing, socialData);
+
+        console.log('Social updated successfully:', updatedSocial);
+
+        updateData({ ...data, socials: data.socials.map(s => (s.id === editing ? updatedSocial : s)) });
+
+      }
+
+      setEditing(null);
+
+      setForm(null);
+
+    } catch (error) {
+
+      console.error('Error saving social link:', error);
+
+      alert('Error saving social link: ' + error.message);
+
+    } finally {
+
+      setSaving(false);
 
     }
-
-    setEditing(null);
-
-    setForm(null);
 
   };
 
 
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
 
-    updateData({ ...data, socials: data.socials.filter(s => s.id !== id) });
+    if (!confirm('Are you sure you want to delete this social link?')) return;
+
+    try {
+
+      await portfolioAPI.deleteSocial(id);
+
+      updateData({ ...data, socials: data.socials.filter(s => s.id !== id) });
+
+    } catch (error) {
+
+      alert('Error deleting social link: ' + error.message);
+
+    }
 
   };
 
@@ -1276,9 +1971,9 @@ function SocialsEditor({ data, updateData }) {
 
         <div className="flex gap-2">
 
-          <button onClick={handleSave} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium">
+          <button onClick={handleSave} disabled={saving} className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium disabled:opacity-50">
 
-            <Save size={18} /> Save
+            {saving ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />} Save
 
           </button>
 
@@ -1404,7 +2099,7 @@ function PublicPortfolio({ data, username }) {
 
         <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
 
-          {data.bio.profilePicture && (
+          {data.bio?.profilePicture && (
 
             <div className="w-[200px] h-[200px] rounded-full bg-slate-700 border-4 border-slate-600 overflow-hidden flex-shrink-0 shadow-xl">
 
@@ -1424,17 +2119,17 @@ function PublicPortfolio({ data, username }) {
 
           <div className="flex-1 text-center md:text-left">
 
-            <h1 className="text-5xl font-bold text-white mb-2">{data.bio.name || username}</h1>
+            <h1 className="text-5xl font-bold text-white mb-2">{data.bio?.name || username}</h1>
 
-            <p className="text-2xl text-emerald-400 font-semibold mb-4">{data.bio.title}</p>
+            <p className="text-2xl text-emerald-400 font-semibold mb-4">{data.bio?.title}</p>
 
-            <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mb-6">{data.bio.about}</p>
+            <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mb-6">{data.bio?.about}</p>
 
             <div className="flex flex-wrap gap-6 text-sm justify-center md:justify-start">
 
-              {data.bio.email && <span className="text-slate-300">📧 <span className="text-slate-400">{data.bio.email}</span></span>}
+              {data.bio?.email && <span className="text-slate-300">📧 <span className="text-slate-400">{data.bio.email}</span></span>}
 
-              {data.bio.phone && <span className="text-slate-300">📱 <span className="text-slate-400">{data.bio.phone}</span></span>}
+              {data.bio?.phone && <span className="text-slate-300">📱 <span className="text-slate-400">{data.bio.phone}</span></span>}
 
             </div>
 
@@ -1446,7 +2141,7 @@ function PublicPortfolio({ data, username }) {
 
 
 
-      {data.experiences.length > 0 && (
+      {data.experiences && data.experiences.length > 0 && (
 
         <section>
 
@@ -1472,7 +2167,7 @@ function PublicPortfolio({ data, username }) {
 
                 <p className="text-emerald-400 font-medium mt-1">{exp.company}</p>
 
-                <p className="text-sm text-slate-400 mt-2">{exp.startDate} → {exp.endDate || 'Current'}</p>
+                <p className="text-sm text-slate-400 mt-2">{exp.start_date} → {exp.end_date || 'Current'}</p>
 
                 {exp.description && <p className="text-slate-300 mt-4">{exp.description}</p>}
 
@@ -1488,7 +2183,63 @@ function PublicPortfolio({ data, username }) {
 
 
 
-      {data.projects.length > 0 && (
+      {data.education && data.education.length > 0 && (
+
+        <section>
+
+          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
+
+            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
+
+              <img src={bioIcon} alt="" className="w-6 h-6 brightness-0 invert" />
+
+            </div>
+
+            Education
+
+          </h2>
+
+          <div className="space-y-4">
+
+            {data.education.map(edu => (
+
+              <div key={edu.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
+
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+
+                  <div>
+
+                    <h3 className="font-bold text-white text-xl">{edu.institution}</h3>
+
+                    <p className="text-emerald-400 font-medium mt-1">{edu.degree}{edu.field ? ` — ${edu.field}` : ''}</p>
+
+                    <p className="text-sm text-slate-400 mt-1">{edu.start_year}{edu.end_year ? ` → ${edu.end_year}` : ''}</p>
+
+                    {edu.description && <p className="text-slate-300 mt-3 text-sm leading-relaxed">{edu.description}</p>}
+
+                  </div>
+
+                  {edu.grade && (
+
+                    <span className="text-sm bg-emerald-600/20 text-emerald-300 border border-emerald-600/30 rounded-lg px-3 py-1 shrink-0">🎓 {edu.grade}</span>
+
+                  )}
+
+                </div>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        </section>
+
+      )}
+
+
+
+      {data.projects && data.projects.length > 0 && (
 
         <section>
 
@@ -1504,35 +2255,111 @@ function PublicPortfolio({ data, username }) {
 
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-6">
 
-            {data.projects.map(proj => (
+            {data.projects.map((proj, idx) => (
 
-              <div key={proj.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600 hover:border-emerald-600/50 transition">
+              <div key={proj.id} className="bg-slate-700/30 rounded-xl border border-slate-600 hover:border-emerald-600/40 transition overflow-hidden">
 
-                <h3 className="font-bold text-white text-lg">{proj.title}</h3>
+                <div className="p-6 border-b border-slate-700/50">
 
-                <p className="text-slate-300 text-sm mt-3">{proj.description}</p>
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
 
-                {proj.tech && <p className="text-xs text-slate-400 mt-4">🛠️ {proj.tech}</p>}
+                    <div>
 
-                {proj.link && (
+                      <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-1">Project {String(idx + 1).padStart(2, '0')}</p>
 
-                  <a
+                      <h3 className="font-bold text-white text-2xl">{proj.title}</h3>
 
-                    href={proj.link}
+                      {proj.description && <p className="text-slate-300 mt-2 text-sm leading-relaxed">{proj.description}</p>}
 
-                    target="_blank"
+                    </div>
 
-                    rel="noopener noreferrer"
+                    {proj.status && (
 
-                    className="text-emerald-400 hover:text-emerald-300 text-sm mt-4 inline-block font-medium"
+                      <span className="text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-600/40 rounded-full px-3 py-1 shrink-0 mt-1">{proj.status}</span>
 
-                  >
+                    )}
 
-                    View Project →
+                  </div>
 
-                  </a>
+                  {(proj.role || proj.tools || proj.timeline) && (
+
+                    <div className="flex flex-wrap gap-6 mt-4">
+
+                      {proj.role && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Role</p><p className="text-sm text-white font-medium">{proj.role}</p></div>}
+
+                      {proj.tools && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Tools</p><p className="text-sm text-white font-medium">{proj.tools}</p></div>}
+
+                      {proj.timeline && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Timeline</p><p className="text-sm text-white font-medium">{proj.timeline}</p></div>}
+
+                    </div>
+
+                  )}
+
+                </div>
+
+                {(proj.problem || proj.highlights || proj.tech) && (
+
+                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    {proj.problem && (
+
+                      <div>
+
+                        <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-2">The Problem</p>
+
+                        <p className="text-slate-300 text-sm leading-relaxed">{proj.problem}</p>
+
+                      </div>
+
+                    )}
+
+                    {proj.highlights && (
+
+                      <div>
+
+                        <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-2">Key Highlights</p>
+
+                        <ul className="space-y-1">
+
+                          {proj.highlights.split('\n').filter(Boolean).map((line, i) => (
+
+                            <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+
+                              <span className="text-emerald-400 mt-1 shrink-0">▸</span>{line}
+
+                            </li>
+
+                          ))}
+
+                        </ul>
+
+                      </div>
+
+                    )}
+
+                  </div>
+
+                )}
+
+                {(proj.link || proj.tech) && (
+
+                  <div className="px-6 pb-5 flex items-center justify-between flex-wrap gap-3">
+
+                    {proj.tech && <p className="text-xs text-slate-400">🛠️ {proj.tech}</p>}
+
+                    {proj.link && (
+
+                      <a href={proj.link} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition">
+
+                        Visit Project →
+
+                      </a>
+
+                    )}
+
+                  </div>
 
                 )}
 
@@ -1548,7 +2375,7 @@ function PublicPortfolio({ data, username }) {
 
 
 
-      {data.blog.length > 0 && (
+      {data.blog && data.blog.length > 0 && (
 
         <section>
 
@@ -1644,11 +2471,11 @@ function PublicPortfolio({ data, username }) {
 
 
 
-function AuthPage({ onSignup, onLogin }) {
+function AuthPage({ onSignup, onLogin, loading }) {
 
   const [isSignup, setIsSignup] = useState(false);
 
-  const [form, setForm] = useState({ username: '', password: '', email: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
 
 
 
@@ -1658,15 +2485,15 @@ function AuthPage({ onSignup, onLogin }) {
 
     if (isSignup) {
 
-      onSignup(e, form.username, form.password, form.email);
+      onSignup(e, form.email, form.password);
 
     } else {
 
-      onLogin(e, form.username, form.password);
+      onLogin(e, form.email, form.password);
 
     }
 
-    setForm({ username: '', password: '', email: '' });
+    setForm({ email: '', password: '' });
 
   };
 
@@ -1694,39 +2521,19 @@ function AuthPage({ onSignup, onLogin }) {
 
             <input
 
-              type="text"
+              type="email"
 
-              placeholder="Username"
+              placeholder="Email"
 
-              value={form.username}
+              value={form.email}
 
-              onChange={(e) => setForm({ ...form, username: e.target.value })}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
 
               className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition"
 
               required
 
             />
-
-            {isSignup && (
-
-              <input
-
-                type="email"
-
-                placeholder="Email"
-
-                value={form.email}
-
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-
-                className="w-full bg-slate-700 border border-slate-600 rounded-lg px-4 py-3 text-white placeholder-slate-400 focus:outline-none focus:border-emerald-500 transition"
-
-                required
-
-              />
-
-            )}
 
             <input
 
@@ -1748,11 +2555,13 @@ function AuthPage({ onSignup, onLogin }) {
 
               type="submit"
 
-              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 rounded-lg transition mt-2"
+              disabled={loading}
+
+              className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-3 rounded-lg transition mt-2 disabled:opacity-50"
 
             >
 
-              {isSignup ? 'Create Account' : 'Sign In'}
+              {loading ? 'Loading...' : (isSignup ? 'Create Account' : 'Sign In')}
 
             </button>
 
@@ -1791,4 +2600,3 @@ function AuthPage({ onSignup, onLogin }) {
   );
 
 }
-
