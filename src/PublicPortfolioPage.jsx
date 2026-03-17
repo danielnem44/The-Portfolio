@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { PublicPortfolio } from './PortfolioCMS';
+import { portfolioAPI, educationAPI } from './api';
 
 const emptyData = {
   bio: { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' },
@@ -8,27 +9,41 @@ const emptyData = {
   projects: [],
   blog: [],
   socials: [],
+  education: [],
 };
 
 export default function PublicPortfolioPage() {
   const [data, setData] = useState(emptyData);
-  const [username, setUsername] = useState('');
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedPortfolio = localStorage.getItem('portfolio_data');
-      const activeUser = localStorage.getItem('portfolio_active_user');
-      if (savedPortfolio) {
-        const portfolio = JSON.parse(savedPortfolio);
-        const user = activeUser || Object.keys(portfolio)[0];
-        if (user && portfolio[user]) {
-          setData(portfolio[user]);
-          setUsername(user);
-        }
+    async function fetchPortfolioData() {
+      try {
+        const [bio, experiences, projects, blogs, socials, education] = await Promise.allSettled([
+          portfolioAPI.getBio(),
+          portfolioAPI.getExperiences(),
+          portfolioAPI.getProjects(),
+          portfolioAPI.getBlogs(),
+          portfolioAPI.getSocials(),
+          educationAPI.getEducation(),
+        ]);
+
+        setData({
+          bio: bio.status === 'fulfilled' && bio.value ? bio.value : emptyData.bio,
+          experiences: experiences.status === 'fulfilled' && experiences.value ? experiences.value : [],
+          projects: projects.status === 'fulfilled' && projects.value ? projects.value : [],
+          blog: blogs.status === 'fulfilled' && blogs.value ? blogs.value : [],
+          socials: socials.status === 'fulfilled' && socials.value ? socials.value : [],
+          education: education.status === 'fulfilled' && education.value ? education.value : [],
+        });
+      } catch (e) {
+        console.log('Could not load portfolio data', e);
+      } finally {
+        setLoading(false);
       }
-    } catch (e) {
-      console.log('No portfolio data');
     }
+
+    fetchPortfolioData();
   }, []);
 
   const hasContent =
@@ -47,7 +62,13 @@ export default function PublicPortfolioPage() {
       >
         {hasContent ? 'Edit portfolio' : 'Create your portfolio'}
       </Link>
-      <PublicPortfolio data={data} username={username} />
+      {loading ? (
+        <div className="flex items-center justify-center min-h-screen">
+          <div className="text-slate-500 text-sm animate-pulse">Loading portfolio…</div>
+        </div>
+      ) : (
+        <PublicPortfolio data={data} />
+      )}
     </div>
   );
 }

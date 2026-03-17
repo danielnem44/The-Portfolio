@@ -1175,7 +1175,7 @@ function EducationEditor({ data, updateData }) {
 
     setEditing('new');
 
-    setForm({ id: Date.now(), title: '', description: '', featuredDescription: '', link: '', tech: '', featured: false, image: '' });
+    setForm({ institution: '', degree: '', field: '', start_year: '', end_year: '', description: '', grade: '' });
 
   };
 
