@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
+import { Link } from 'react-router-dom';
 import { LogOut, Plus, Edit, Trash2, Save, X, Upload, User, Loader2 } from 'lucide-react';
 
 import bioIcon from '../assets/bio and info.png';
@@ -43,6 +43,8 @@ export default function PortfolioCMS() {
     education: []
 
   });
+
+
 
 
 
@@ -345,7 +347,7 @@ export default function PortfolioCMS() {
 
               <NavBtn page="dashboard" current={currentPage} setPage={setCurrentPage} label="Dashboard" />
 
-              <NavBtn page="public" current={currentPage} setPage={setCurrentPage} label="Preview" />
+              <Link to="/" target="_blank" className="px-4 py-2 rounded-lg text-slate-300 hover:bg-slate-700 transition font-medium">View Site</Link>
 
             </div>
 
@@ -378,8 +380,6 @@ export default function PortfolioCMS() {
       <div className="max-w-7xl mx-auto px-4 py-8">
 
         {currentPage === 'dashboard' && <Dashboard data={getUserData()} updateData={updateUserData} />}
-
-        {currentPage === 'public' && <PublicPortfolio data={getUserData()} username={currentUser} />}
 
       </div>
 
@@ -821,11 +821,75 @@ function BioEditor({ data, updateData }) {
 
       <div className="space-y-4">
 
+        <label className="block text-sm font-medium text-slate-300 mb-2">Hero Image</label>
+
+        <p className="text-xs text-slate-400 mb-2">Optional. Shows in the hero section next to your intro. Use a portrait or wide image.</p>
+
+        <div className="flex items-center gap-6">
+
+          <div className="relative">
+
+            <div className="w-[280px] h-[180px] rounded-lg bg-slate-700 border-2 border-dashed border-slate-600 overflow-hidden flex items-center justify-center">
+
+              {form.heroImage ? (
+
+                <img src={form.heroImage} alt="Hero" className="w-full h-full object-cover" />
+
+              ) : (
+
+                <div className="text-center text-slate-400">
+
+                  <Upload size={40} className="mx-auto mb-2 opacity-50" />
+
+                  <span className="text-sm">No image</span>
+
+                </div>
+
+              )}
+
+            </div>
+
+            <div className="flex gap-2 mt-2">
+
+              <input type="file" accept="image/*" id="hero-image-input" className="hidden" onChange={(e) => {
+
+                const file = e.target.files?.[0];
+
+                if (file && file.size <= 5 * 1024 * 1024) {
+
+                  const reader = new FileReader();
+
+                  reader.onloadend = () => setForm({ ...form, heroImage: reader.result });
+
+                  reader.readAsDataURL(file);
+
+                } else if (file) alert('Image must be under 5MB');
+
+              }} />
+
+              <label htmlFor="hero-image-input" className="cursor-pointer text-sm text-emerald-400 hover:text-emerald-300">Upload</label>
+
+              {form.heroImage && <button type="button" onClick={() => setForm({ ...form, heroImage: '' })} className="text-sm text-red-400 hover:text-red-300">Remove</button>}
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+
+
+      <div className="space-y-4">
+
         <InputField label="Full Name" value={form.name} onChange={(name) => setForm({ ...form, name })} />
 
-        <InputField label="Professional Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="e.g. Full Stack Developer" />
+        <InputField label="Tagline / Identity Statement" value={form.tagline} onChange={(tagline) => setForm({ ...form, tagline })} placeholder="e.g. I make things with words" />
 
-        <TextArea label="About You" value={form.about} onChange={(about) => setForm({ ...form, about })} placeholder="Tell your story..." rows={4} />
+        <InputField label="Professional Title" value={form.title} onChange={(title) => setForm({ ...form, title })} placeholder="e.g. Writer & Teacher (optional)" />
+
+        <TextArea label="About You" value={form.about} onChange={(about) => setForm({ ...form, about })} placeholder="Your story in prose — who you are, your journey, what you do now..." rows={6} />
 
         <InputField label="Email" type="email" value={form.email} onChange={(email) => setForm({ ...form, email })} />
 
@@ -1111,7 +1175,7 @@ function EducationEditor({ data, updateData }) {
 
     setEditing('new');
 
-    setForm({ institution: '', degree: '', field: '', start_year: '', end_year: '', description: '', grade: '' });
+    setForm({ id: Date.now(), title: '', description: '', featuredDescription: '', link: '', tech: '', featured: false, image: '' });
 
   };
 
@@ -1219,21 +1283,55 @@ function EducationEditor({ data, updateData }) {
 
         <InputField label="Institution / School" value={form.institution} onChange={(institution) => setForm({ ...form, institution })} placeholder="University of Agder (UiA)" />
 
-        <InputField label="Degree" value={form.degree} onChange={(degree) => setForm({ ...form, degree })} placeholder="Bachelor's, Master's, Certificate..." />
+        <TextArea label="Short Description" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={2} placeholder="Brief summary for list view" />
 
-        <InputField label="Field of Study" value={form.field} onChange={(field) => setForm({ ...form, field })} placeholder="Multimedia Design, Computer Science..." />
+        <div className="flex items-center gap-2">
 
-        <div className="grid grid-cols-2 gap-4">
+          <input type="checkbox" id="featured" checked={form.featured || false} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500" />
 
-          <InputField label="Start Year" value={form.start_year} onChange={(start_year) => setForm({ ...form, start_year })} placeholder="2022" />
-
-          <InputField label="End Year (or Expected)" value={form.end_year} onChange={(end_year) => setForm({ ...form, end_year })} placeholder="2025 / Present" />
+          <label htmlFor="featured" className="text-slate-300 font-medium">Featured — give this project a full spotlight section</label>
 
         </div>
 
-        <InputField label="Grade / GPA (optional)" value={form.grade} onChange={(grade) => setForm({ ...form, grade })} placeholder="A / 3.8 / Top of class..." />
+        {form.featured && <TextArea label="Featured Description" value={form.featuredDescription || ''} onChange={(featuredDescription) => setForm({ ...form, featuredDescription })} rows={6} placeholder="Rich narrative about this work — the story, the vision, why it matters..." />}
 
-        <TextArea label="Description (optional)" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={3} placeholder="What you studied, projects, achievements..." />
+        <div>
+
+          <label className="block text-sm font-medium text-slate-300 mb-2">Project Image</label>
+
+          <div className="flex items-center gap-4">
+
+            <div className="w-32 h-24 rounded-lg bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0 flex items-center justify-center">
+
+              {form.image ? <img src={form.image} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-500 text-xs">No image</span>}
+
+            </div>
+
+            <div>
+
+              <input type="file" accept="image/*" id={`proj-img-${form.id}`} className="hidden" onChange={(e) => {
+
+                const file = e.target.files?.[0];
+
+                if (file && file.size <= 5 * 1024 * 1024) { const r = new FileReader(); r.onloadend = () => setForm({ ...form, image: r.result }); r.readAsDataURL(file); }
+
+                else if (file) alert('Image must be under 5MB');
+
+              }} />
+
+              <label htmlFor={`proj-img-${form.id}`} className="text-sm text-emerald-400 hover:text-emerald-300 cursor-pointer">Upload</label>
+
+              {form.image && <button type="button" onClick={() => setForm({ ...form, image: '' })} className="text-sm text-red-400 hover:text-red-300 ml-2">Remove</button>}
+
+            </div>
+
+          </div>
+
+        </div>
+
+        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://..." />
+
+        <InputField label="Tech Stack / Category" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node — or: Book, Podcast, Course..." />
 
         <div className="flex gap-2">
 
@@ -1563,20 +1661,15 @@ function ProjectsEditor({ data, updateData }) {
 
               <div className="flex justify-between items-start gap-2">
 
-                <div className="flex-1">
-
-                  <h3 className="font-bold text-white">{proj.title}</h3>
-
-                  {proj.status && <span className="text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 rounded-full px-2 py-0.5 mt-1 inline-block">{proj.status}</span>}
-
+                {proj.image && (
+                  <div className="w-14 h-14 rounded flex-shrink-0 overflow-hidden bg-slate-600">
+                    <img src={proj.image} alt="" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-bold text-white flex items-center gap-2">{proj.title} {proj.featured && <span className="text-xs bg-amber-500/30 text-amber-300 px-2 py-0.5 rounded">Featured</span>}</h3>
                   <p className="text-slate-300 text-sm mt-2">{proj.description}</p>
-
-                  {proj.role && <p className="text-xs text-slate-400 mt-1">👤 {proj.role}</p>}
-
-                  {proj.tools && <p className="text-xs text-slate-400 mt-1">🛠️ {proj.tools}</p>}
-
-                  {proj.timeline && <p className="text-xs text-slate-400 mt-1">📅 {proj.timeline}</p>}
-
+                  {proj.tech && <p className="text-xs text-slate-400 mt-2">🛠️ {proj.tech}</p>}
                 </div>
 
                 <div className="flex gap-2">
@@ -2089,385 +2182,214 @@ function SocialsEditor({ data, updateData }) {
 
 
 
-function PublicPortfolio({ data, username }) {
+export function PublicPortfolio({ data, username = '' }) {
+  const name = data.bio?.name || username;
+  const tagline = data.bio?.tagline || '';
+  const featuredProjects = (data.projects || []).filter((p) => p.featured);
+  const allProjects = data.projects || [];
+  const socials = data.socials || [];
+  const heroImg = data.bio?.heroImage || data.bio?.profilePicture;
 
   return (
+    <div className="font-sans text-slate-200">
 
-    <div className="space-y-12 max-w-4xl">
-
-      <section className="bg-gradient-to-r from-green-600/20 to-emerald-600/20 rounded-xl p-12 border border-slate-700">
-
-        <div className="flex flex-col md:flex-row items-center md:items-start gap-6 mb-6">
-
-          {data.bio?.profilePicture && (
-
-            <div className="w-[200px] h-[200px] rounded-full bg-slate-700 border-4 border-slate-600 overflow-hidden flex-shrink-0 shadow-xl">
-
-              <img
-
-                src={data.bio.profilePicture}
-
-                alt={data.bio.name || username}
-
-                className="w-full h-full object-cover"
-
-              />
-
-            </div>
-
+      {/* Hero */}
+      <section className="min-h-[85vh] flex flex-col md:flex-row md:items-center justify-between gap-12 px-6 py-20 max-w-6xl mx-auto">
+        <div className="flex-1">
+          <p className="text-slate-400 text-lg mb-4 font-medium">Hello. My name is</p>
+          <h1 className="font-serif text-5xl md:text-7xl font-semibold text-white leading-tight tracking-tight mb-6">
+            {name}.
+          </h1>
+          {tagline ? (
+            <p className="font-serif text-2xl md:text-3xl text-slate-300 italic leading-relaxed max-w-2xl">
+              {tagline}
+            </p>
+          ) : (
+            <p className="text-slate-500 text-sm">Add a tagline in your bio — e.g. &quot;Self-taught designer building apps that matter&quot;</p>
           )}
-
-          <div className="flex-1 text-center md:text-left">
-
-            <h1 className="text-5xl font-bold text-white mb-2">{data.bio?.name || username}</h1>
-
-            <p className="text-2xl text-emerald-400 font-semibold mb-4">{data.bio?.title}</p>
-
-            <p className="text-slate-300 text-lg leading-relaxed max-w-2xl mb-6">{data.bio?.about}</p>
-
-            <div className="flex flex-wrap gap-6 text-sm justify-center md:justify-start">
-
-              {data.bio?.email && <span className="text-slate-300">📧 <span className="text-slate-400">{data.bio.email}</span></span>}
-
-              {data.bio?.phone && <span className="text-slate-300">📱 <span className="text-slate-400">{data.bio.phone}</span></span>}
-
-            </div>
-
-          </div>
-
+          <div className="mt-16 text-slate-500 text-sm animate-bounce">↓ scroll</div>
         </div>
-
+        <div className="flex-shrink-0 w-full md:w-[380px] aspect-[4/3] md:aspect-square rounded-xl overflow-hidden bg-slate-800 border border-slate-700 flex items-center justify-center">
+          {heroImg ? (
+            <img src={heroImg} alt="" className="w-full h-full object-cover" />
+          ) : (
+            <div className="text-slate-600 text-center p-8">
+              <p className="text-sm">Add a profile or hero image in Bio &amp; Info</p>
+            </div>
+          )}
+        </div>
       </section>
 
-
-
-      {data.experiences && data.experiences.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={experienceIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Experience
-
-          </h2>
-
-          <div className="space-y-4">
-
-            {data.experiences.map(exp => (
-
-              <div key={exp.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
-
-                <h3 className="font-bold text-white text-xl">{exp.position}</h3>
-
-                <p className="text-emerald-400 font-medium mt-1">{exp.company}</p>
-
-                <p className="text-sm text-slate-400 mt-2">{exp.start_date} → {exp.end_date || 'Current'}</p>
-
-                {exp.description && <p className="text-slate-300 mt-4">{exp.description}</p>}
-
+      {/* Featured Projects — full narrative */}
+      {featuredProjects.length > 0 && featuredProjects.map((proj) => (
+        <section key={proj.id} id={`project-${proj.id}`} className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            {proj.image && (
+              <div className="mb-8 rounded-lg overflow-hidden aspect-video bg-slate-800">
+                <img src={proj.image} alt={proj.title} className="w-full h-full object-cover" />
               </div>
-
-            ))}
-
-          </div>
-
-        </section>
-
-      )}
-
-
-
-      {data.education && data.education.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={bioIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Education
-
-          </h2>
-
-          <div className="space-y-4">
-
-            {data.education.map(edu => (
-
-              <div key={edu.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
-
-                <div className="flex items-start justify-between gap-4 flex-wrap">
-
-                  <div>
-
-                    <h3 className="font-bold text-white text-xl">{edu.institution}</h3>
-
-                    <p className="text-emerald-400 font-medium mt-1">{edu.degree}{edu.field ? ` — ${edu.field}` : ''}</p>
-
-                    <p className="text-sm text-slate-400 mt-1">{edu.start_year}{edu.end_year ? ` → ${edu.end_year}` : ''}</p>
-
-                    {edu.description && <p className="text-slate-300 mt-3 text-sm leading-relaxed">{edu.description}</p>}
-
-                  </div>
-
-                  {edu.grade && (
-
-                    <span className="text-sm bg-emerald-600/20 text-emerald-300 border border-emerald-600/30 rounded-lg px-3 py-1 shrink-0">🎓 {edu.grade}</span>
-
-                  )}
-
-                </div>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        </section>
-
-      )}
-
-
-
-      {data.projects && data.projects.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={projectIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Projects
-
-          </h2>
-
-          <div className="space-y-6">
-
-            {data.projects.map((proj, idx) => (
-
-              <div key={proj.id} className="bg-slate-700/30 rounded-xl border border-slate-600 hover:border-emerald-600/40 transition overflow-hidden">
-
-                <div className="p-6 border-b border-slate-700/50">
-
-                  <div className="flex items-start justify-between gap-4 flex-wrap">
-
-                    <div>
-
-                      <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-1">Project {String(idx + 1).padStart(2, '0')}</p>
-
-                      <h3 className="font-bold text-white text-2xl">{proj.title}</h3>
-
-                      {proj.description && <p className="text-slate-300 mt-2 text-sm leading-relaxed">{proj.description}</p>}
-
-                    </div>
-
-                    {proj.status && (
-
-                      <span className="text-xs bg-emerald-600/20 text-emerald-400 border border-emerald-600/40 rounded-full px-3 py-1 shrink-0 mt-1">{proj.status}</span>
-
-                    )}
-
-                  </div>
-
-                  {(proj.role || proj.tools || proj.timeline) && (
-
-                    <div className="flex flex-wrap gap-6 mt-4">
-
-                      {proj.role && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Role</p><p className="text-sm text-white font-medium">{proj.role}</p></div>}
-
-                      {proj.tools && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Tools</p><p className="text-sm text-white font-medium">{proj.tools}</p></div>}
-
-                      {proj.timeline && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Timeline</p><p className="text-sm text-white font-medium">{proj.timeline}</p></div>}
-
-                    </div>
-
-                  )}
-
-                </div>
-
-                {(proj.problem || proj.highlights || proj.tech) && (
-
-                  <div className="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-
-                    {proj.problem && (
-
-                      <div>
-
-                        <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-2">The Problem</p>
-
-                        <p className="text-slate-300 text-sm leading-relaxed">{proj.problem}</p>
-
-                      </div>
-
-                    )}
-
-                    {proj.highlights && (
-
-                      <div>
-
-                        <p className="text-xs font-medium tracking-widest text-emerald-400 uppercase mb-2">Key Highlights</p>
-
-                        <ul className="space-y-1">
-
-                          {proj.highlights.split('\n').filter(Boolean).map((line, i) => (
-
-                            <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
-
-                              <span className="text-emerald-400 mt-1 shrink-0">▸</span>{line}
-
-                            </li>
-
-                          ))}
-
-                        </ul>
-
-                      </div>
-
-                    )}
-
-                  </div>
-
-                )}
-
-                {(proj.link || proj.tech) && (
-
-                  <div className="px-6 pb-5 flex items-center justify-between flex-wrap gap-3">
-
-                    {proj.tech && <p className="text-xs text-slate-400">🛠️ {proj.tech}</p>}
-
-                    {proj.link && (
-
-                      <a href={proj.link} target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:text-emerald-300 text-sm font-medium transition">
-
-                        Visit Project →
-
-                      </a>
-
-                    )}
-
-                  </div>
-
-                )}
-
-              </div>
-
-            ))}
-
-          </div>
-
-        </section>
-
-      )}
-
-
-
-      {data.blog && data.blog.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={blogIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Blog
-
-          </h2>
-
-          <div className="space-y-4">
-
-            {data.blog.map(post => (
-
-              <div key={post.id} className="bg-slate-700/30 rounded-lg p-6 border border-slate-600">
-
-                <h3 className="font-bold text-white text-xl">{post.title}</h3>
-
-                <p className="text-slate-400 text-sm mt-2">📅 {post.date}</p>
-
-                <p className="text-slate-300 mt-4 leading-relaxed whitespace-pre-wrap">{post.content}</p>
-
-              </div>
-
-            ))}
-
-          </div>
-
-        </section>
-
-      )}
-
-
-
-      {data.socials && data.socials.length > 0 && (
-
-        <section>
-
-          <h2 className="text-3xl font-bold text-white mb-6 flex items-center gap-3">
-
-            <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center">
-
-              <img src={socialIcon} alt="" className="w-6 h-6 brightness-0 invert" />
-
-            </div>
-
-            Socials
-
-          </h2>
-
-          <div className="flex flex-wrap gap-4">
-
-            {data.socials.map(social => (
-
-              <a
-
-                key={social.id}
-
-                href={social.url}
-
-                target="_blank"
-
-                rel="noopener noreferrer"
-
-                className="bg-slate-700/30 hover:bg-slate-700/50 rounded-lg px-6 py-3 border border-slate-600 hover:border-emerald-600/50 transition inline-flex items-center gap-2"
-
-              >
-
-                <span className="font-semibold text-emerald-400">{social.platform}</span>
-
-                <span className="text-slate-400 text-sm">→</span>
-
+            )}
+            <h2 className="font-serif text-3xl md:text-4xl font-semibold text-white mb-6">{proj.title}</h2>
+            <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-lg">
+              {proj.featuredDescription || proj.description}
+            </p>
+            {proj.link && (
+              <a href={proj.link} target="_blank" rel="noopener noreferrer"
+                className="inline-block mt-8 px-6 py-3 border border-slate-500 hover:border-emerald-500 text-slate-300 hover:text-emerald-400 font-medium transition">
+                View →
               </a>
-
-            ))}
-
+            )}
           </div>
-
         </section>
+      ))}
 
+      {/* About */}
+      {(data.bio?.about || data.bio?.title) && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50 bg-slate-900/30">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-8">About {name}</h2>
+            {data.bio.title && <p className="text-emerald-400/90 font-medium mb-4">{data.bio.title}</p>}
+            <p className="text-slate-300 leading-relaxed whitespace-pre-wrap text-lg">{data.bio.about}</p>
+          </div>
+        </section>
+      )}
+
+      {/* Education */}
+      {(data.education || []).length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50 bg-slate-900/30">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">Education</h2>
+            <div className="space-y-8">
+              {(data.education || []).map(edu => (
+                <div key={edu.id}>
+                  <h3 className="font-medium text-white text-lg">{edu.institution}</h3>
+                  <p className="text-emerald-400/90 mt-0.5">{edu.degree}{edu.field ? ` — ${edu.field}` : ''}</p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {edu.start_year}{edu.end_year ? ` → ${edu.end_year}` : ''}{edu.grade ? ` · ${edu.grade}` : ''}
+                  </p>
+                  {edu.description && <p className="text-slate-300 mt-3 leading-relaxed">{edu.description}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Projects — detailed */}
+      {allProjects.length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">Projects</h2>
+            <div className="space-y-10">
+              {allProjects.map((proj, idx) => (
+                <div key={proj.id} className="border-b border-slate-700/50 pb-10 last:border-0">
+                  <div className="flex items-start justify-between gap-4 flex-wrap mb-2">
+                    <div>
+                      <p className="text-xs font-medium tracking-widest text-emerald-400/80 uppercase mb-1">
+                        Project {String(idx + 1).padStart(2, '0')}
+                      </p>
+                      <h3 className="font-serif text-xl font-semibold text-white">{proj.title}</h3>
+                    </div>
+                    {proj.status && (
+                      <span className="text-xs text-slate-400 border border-slate-600 rounded-full px-2 py-0.5">{proj.status}</span>
+                    )}
+                  </div>
+                  {proj.description && <p className="text-slate-300 leading-relaxed mt-2">{proj.description}</p>}
+                  {(proj.role || proj.tools || proj.timeline) && (
+                    <div className="flex flex-wrap gap-6 mt-4">
+                      {proj.role && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Role</p><p className="text-sm text-slate-300">{proj.role}</p></div>}
+                      {proj.tools && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Tools</p><p className="text-sm text-slate-300">{proj.tools}</p></div>}
+                      {proj.timeline && <div><p className="text-xs text-slate-500 uppercase tracking-wider mb-0.5">Timeline</p><p className="text-sm text-slate-300">{proj.timeline}</p></div>}
+                    </div>
+                  )}
+                  {proj.problem && <p className="text-slate-400 text-sm mt-4 leading-relaxed italic">{proj.problem}</p>}
+                  {proj.highlights && (
+                    <ul className="mt-3 space-y-1">
+                      {proj.highlights.split('\n').filter(Boolean).map((line, i) => (
+                        <li key={i} className="text-slate-300 text-sm flex items-start gap-2">
+                          <span className="text-emerald-400 mt-1 shrink-0">▸</span>{line}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {proj.link && (
+                    <a href={proj.link} target="_blank" rel="noopener noreferrer"
+                      className="inline-block mt-4 text-slate-300 hover:text-emerald-400 transition font-medium">
+                      View Project →
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Journey — experience */}
+      {(data.experiences || []).length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50 bg-slate-900/30">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">Journey</h2>
+            <div className="space-y-8">
+              {data.experiences.map((exp) => (
+                <div key={exp.id}>
+                  <h3 className="font-medium text-white text-lg">{exp.position}</h3>
+                  <p className="text-emerald-400/90 mt-0.5">{exp.company}</p>
+                  <p className="text-slate-500 text-sm mt-1">
+                    {exp.start_date} → {exp.end_date || 'Present'}
+                  </p>
+                  {exp.description && <p className="text-slate-300 mt-3 leading-relaxed">{exp.description}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Writing — blog */}
+      {(data.blog || []).length > 0 && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-10">Writing</h2>
+            <div className="space-y-8">
+              {data.blog.map((post) => (
+                <article key={post.id}>
+                  <h3 className="font-medium text-white text-lg">{post.title}</h3>
+                  <p className="text-slate-500 text-sm mt-1">{post.date}</p>
+                  <p className="text-slate-300 mt-3 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                </article>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Stay in Touch */}
+      {(socials.length > 0 || data.bio?.email) && (
+        <section className="py-20 md:py-28 px-6 border-t border-slate-700/50">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="font-serif text-2xl md:text-3xl font-semibold text-white mb-8">Stay in Touch</h2>
+            <div className="flex flex-wrap gap-4">
+              {data.bio?.email && (
+                <a href={`mailto:${data.bio.email}`} className="text-slate-300 hover:text-emerald-400 transition font-medium">
+                  Email
+                </a>
+              )}
+              {socials.map((social) => (
+                <a key={social.id} href={social.url} target="_blank" rel="noopener noreferrer"
+                  className="text-slate-300 hover:text-emerald-400 transition font-medium">
+                  {social.platform}
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
       )}
 
     </div>
-
   );
-
 }
+
 
 
 
