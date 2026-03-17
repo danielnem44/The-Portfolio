@@ -126,9 +126,19 @@ export default function PortfolioCMS() {
 
 
 
+  const OWNER_EMAIL = 'nemeyedaniel3@gmail.com';
+
   const handleSignup = async (e, email, password) => {
 
     e.preventDefault();
+
+    if (email.toLowerCase().trim() !== OWNER_EMAIL) {
+
+      alert('Registration is not open. This portfolio belongs to Daniel Nemeye.');
+
+      return;
+
+    }
 
     try {
 
@@ -576,7 +586,7 @@ function TextArea({ label, value, onChange, rows = 4, placeholder = '' }) {
 
 function BioEditor({ data, updateData }) {
 
-  const [form, setForm] = useState(data.bio || { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' });
+  const [form, setForm] = useState(data.bio || { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' });
 
   const [saving, setSaving] = useState(false);
 
@@ -586,7 +596,7 @@ function BioEditor({ data, updateData }) {
 
   useEffect(() => {
 
-    setForm(data.bio || { name: '', title: '', about: '', email: '', phone: '', profilePicture: '' });
+    setForm(data.bio || { name: '', title: '', tagline: '', about: '', email: '', phone: '', profilePicture: '', heroImage: '' });
 
   }, [data.bio]);
 
@@ -652,17 +662,21 @@ function BioEditor({ data, updateData }) {
 
       const bioData = {
 
-        name: form.name || null,
+        name: form.name || '',
 
-        title: form.title || null,
+        title: form.title || '',
 
-        about: form.about || null,
+        tagline: form.tagline || '',
 
-        email: form.email || null,
+        about: form.about || '',
 
-        phone: form.phone || null,
+        email: form.email || '',
 
-        profile_picture: form.profilePicture || null
+        phone: form.phone || '',
+
+        profilePicture: form.profilePicture || '',
+
+        heroImage: form.heroImage || ''
 
       };
 
@@ -1254,57 +1268,23 @@ function EducationEditor({ data, updateData }) {
 
         <h3 className="text-2xl font-bold text-white">{editing === 'new' ? 'Add Education' : 'Edit Education'}</h3>
 
-        <InputField label="Institution / School" value={form.institution} onChange={(institution) => setForm({ ...form, institution })} placeholder="University of Agder (UiA)" />
+        <InputField label="Institution / School" value={form.institution || ''} onChange={(institution) => setForm({ ...form, institution })} placeholder="University of Agder (UiA)" />
 
-        <TextArea label="Short Description" value={form.description} onChange={(description) => setForm({ ...form, description })} rows={2} placeholder="Brief summary for list view" />
+        <InputField label="Degree / Certificate" value={form.degree || ''} onChange={(degree) => setForm({ ...form, degree })} placeholder="e.g. Bachelor, Diploma, High School" />
 
-        <div className="flex items-center gap-2">
+        <InputField label="Field of Study" value={form.field || ''} onChange={(field) => setForm({ ...form, field })} placeholder="e.g. IT and Information Systems" />
 
-          <input type="checkbox" id="featured" checked={form.featured || false} onChange={(e) => setForm({ ...form, featured: e.target.checked })} className="rounded border-slate-600 bg-slate-700 text-emerald-500 focus:ring-emerald-500" />
+        <div className="grid grid-cols-2 gap-4">
 
-          <label htmlFor="featured" className="text-slate-300 font-medium">Featured — give this project a full spotlight section</label>
+          <InputField label="Start Year" value={form.start_year || ''} onChange={(start_year) => setForm({ ...form, start_year })} placeholder="2024" />
 
-        </div>
-
-        {form.featured && <TextArea label="Featured Description" value={form.featuredDescription || ''} onChange={(featuredDescription) => setForm({ ...form, featuredDescription })} rows={6} placeholder="Rich narrative about this work — the story, the vision, why it matters..." />}
-
-        <div>
-
-          <label className="block text-sm font-medium text-slate-300 mb-2">Project Image</label>
-
-          <div className="flex items-center gap-4">
-
-            <div className="w-32 h-24 rounded-lg bg-slate-700 border border-slate-600 overflow-hidden flex-shrink-0 flex items-center justify-center">
-
-              {form.image ? <img src={form.image} alt="" className="w-full h-full object-cover" /> : <span className="text-slate-500 text-xs">No image</span>}
-
-            </div>
-
-            <div>
-
-              <input type="file" accept="image/*" id={`proj-img-${form.id}`} className="hidden" onChange={(e) => {
-
-                const file = e.target.files?.[0];
-
-                if (file && file.size <= 5 * 1024 * 1024) { const r = new FileReader(); r.onloadend = () => setForm({ ...form, image: r.result }); r.readAsDataURL(file); }
-
-                else if (file) alert('Image must be under 5MB');
-
-              }} />
-
-              <label htmlFor={`proj-img-${form.id}`} className="text-sm text-emerald-400 hover:text-emerald-300 cursor-pointer">Upload</label>
-
-              {form.image && <button type="button" onClick={() => setForm({ ...form, image: '' })} className="text-sm text-red-400 hover:text-red-300 ml-2">Remove</button>}
-
-            </div>
-
-          </div>
+          <InputField label="End Year" value={form.end_year || ''} onChange={(end_year) => setForm({ ...form, end_year })} placeholder="2027 (or leave blank if ongoing)" />
 
         </div>
 
-        <InputField label="Project Link" value={form.link} onChange={(link) => setForm({ ...form, link })} placeholder="https://..." />
+        <InputField label="Grade / GPA (optional)" value={form.grade || ''} onChange={(grade) => setForm({ ...form, grade })} placeholder="e.g. A / 3.8 GPA" />
 
-        <InputField label="Tech Stack / Category" value={form.tech} onChange={(tech) => setForm({ ...form, tech })} placeholder="React, Node — or: Book, Podcast, Course..." />
+        <TextArea label="Notes / Description (optional)" value={form.description || ''} onChange={(description) => setForm({ ...form, description })} rows={3} placeholder="Any extra context about this qualification..." />
 
         <div className="flex gap-2">
 
