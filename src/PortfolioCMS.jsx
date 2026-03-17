@@ -256,7 +256,7 @@ export default function PortfolioCMS() {
 
         };
 
-        await portfolioAPI.createOrUpdateBio(bioData);
+        await portfolioAPI.saveBio(bioData);
 
       }
 
@@ -668,7 +668,7 @@ function BioEditor({ data, updateData }) {
 
       console.log('Saving bio data:', bioData);
 
-      const result = await portfolioAPI.createOrUpdateBio(bioData);
+      const result = await portfolioAPI.saveBio(bioData);
 
       console.log('Bio saved successfully:', result);
 
